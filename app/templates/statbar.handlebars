@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<div class="hp-holder holder">
+  <span>HP: </span><span class="hp">{{this.curHP}} / {{this.healthPoints}}</span>
+</div>
+<div class="attack-holder holder">
+  <span>Attack: </span><span class="attack">{{this.damageLow}} - {{this.damageHigh}}</span>
+</div>
+<div class="level-holder holder">
+  <span>Level: </span><span class="level">{{this.level}}</span>
+</div>
+{{#if this.reaction}}
+<div class="xp-holder holder">
+  <span>XP: </span><span class="xp">{{this.xp}}</span>
+</div>
+<div class="next-level-holder holder">
+  <span>Next Level At: </span><span class="next">{{this.nextlevel}}</span>
+</div>
+{{/if}}

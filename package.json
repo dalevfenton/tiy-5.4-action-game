@@ -4,7 +4,7 @@
     "node": ">=0.10.0"
   },
   "devDependencies": {
-    
+
     "git-directory-deploy": "^1.4.0",
     "autoprefixer": "^6.3.3",
     "browserify-shim": "^3.8.12",
@@ -47,7 +47,7 @@
     "watch:scss": "sass --watch app/styles:dist/css",
     "watch:js": "watchify app/scripts/index.js -o dist/js/bundle.js",
     "watch:html": "npm run html && onchange 'app/**/*.html' -- npm run html",
-    "server": "live-server --browser='Google Chrome.app' --port='9001' --open='dist'",
+    "server": "live-server --browser='Google Chrome.app' --open='dist'",
     "watch": "parallelshell 'npm run watch:html' 'npm run watch:scss' 'npm run watch:js' 'npm run server'"
   },
   "browserify": {

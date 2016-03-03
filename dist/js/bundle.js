@@ -1,5 +1,6 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 "use strict";
+<<<<<<< HEAD
 //features to add
 //upgrades with levelups
 //set missiles to non-penetrating
@@ -60,11 +61,77 @@ function Missile(config){
     this.x += this.vector[0] * this.speed;
     this.y += this.vector[1] * this.speed;
     $('#missile-'+this.id).offset({ top: this.y, left: this.x });
+=======
+module.exports = {
+  user: {
+    low: _.random(3,5),
+    high: _.random(8,10),
+    hp: _.random(50,60),
+    level: 1,
+    xp: 0,
+    react: 'friendly'
+  },
+  enemy: {
+    low: _.random(1,5),
+    high: _.random(5,10),
+    hp: _.random(20,30),
+    level: 1,
+    xp: 10
+  },
+  archer: {
+    low: _.random(1,3),
+    high: _.random(4,15),
+    hp: _.random(10,20),
+    level: 1,
+    xp: 8
+  }
+};
+
+},{}],2:[function(require,module,exports){
+"use strict";
+var $ = require('jquery');
+window._ = require('underscore');
+var Handlebars = require('handlebars');
+var id = 1;
+var missileArr = [];
+//-----------------------------------------------------------------------------
+//                        TEMPLATES
+//to include an external handlebars template named header.handlebars
+//just do a var header = require("./header.handlebars") assuming it is in
+//the scripts folder
+//-----------------------------------------------------------------------------
+var statbar = require('../templates/statbar.handlebars');
+var moveScale = 10;
+var missileSpeed = 20;
+Handlebars.registerHelper('next-level', function( level ) {
+  return new Handlebars.SafeString( level * 19 );
+});
+var interval = window.setInterval(moveMissile, 100);
+function moveMissile(){
+  console.log('called move missile');
+  console.log(missileArr);
+  missileArr.forEach(function(item){
+    item.move();
+    item.draw();
+  });
+}
+var characters = require('./characters');
+function Missile(config, id){
+  this.ID = id;
+  this.x = (config.x || 0);
+  this.y = (config.y || 0);
+  this.vector = (config.vector || [1,1]);
+  this.move = function(){
+    this.x += this.vector[0] * missileSpeed;
+    this.y += this.vector[1] * missileSpeed;
+    $('#missile-'+this.id).offset({ top: this.x, left: this.y });
+>>>>>>> 1826b12... working on adding character and shooting missiles
   };
   this.draw = function(){
     $('#game-field').append('<div id="missile-' + this.id + '" class="missile">');
     $("#missile-" + this.id).offset({top: this.y, left: this.x});
   };
+<<<<<<< HEAD
   this.remove = function(){
     $('#missile-' + this.id).remove();
   };
@@ -272,10 +339,50 @@ $('#save-a-game').click(function(event){
 function closeWindow(){
   $('#game-info').removeClass('show-info');
 }
+=======
+}
+function Character(config, id){
+  this.ID = id;
+  this.damageLow = (config.low || _.random(1,6));
+  this.damageHigh = (config.high || _.random(6,11));
+  this.healthPoints = (config.hp || _.random(50,61));
+  this.curHP = this.healthPoints;
+  this.level = (config.level || _.random(1,3));
+  this.nextlevel = this.level * 19;
+  this.xp = (config.xp || 0);
+  this.reaction = (config.react || undefined);
+  this.takeDamage = function(damage){
+    this.curHP -= damage;
+  };
+  this.rollDamage = function(){
+    return _.random(this.damageLow, this.damageHigh);
+  };
+  id += 1;
+}
+
+var archer = new Character(characters.archer);
+var User = new Character(characters.user);
+var Enemy;
+var player = $('#player');
+
+
+$(window).on('keydown', function(){
+  $('#player').trigger('tbg:player');
+});
+$(window).on('click', function(){
+  $(window).trigger('tbg:player-attack');
+  // console.log(event);
+});
+
+
+$(window).bind('tbg:player-attack', fireMissile );
+
+>>>>>>> 1826b12... working on adding character and shooting missiles
 function fireMissile(){
   event.preventDefault();
   var mouseAbsPosX = event.x;
   var mouseAbsPosY = event.y;
+<<<<<<< HEAD
   var vector = normalizedVector(event.x, event.y, player.x, player.y );
   var missile = new Missile({x: player.x, y: player.y, vector:vector});
   missile.draw();
@@ -320,10 +427,131 @@ function playerVector(){
 }
 
 },{"../templates/statbar.handlebars":2,"handlebars":33,"jquery":46,"underscore":49}],2:[function(require,module,exports){
+=======
+  var playerAbsPos = player.offset();
+  var vector = [mouseAbsPosX - playerAbsPos.left, mouseAbsPosY - playerAbsPos.top];
+  var vectorDist = Math.sqrt(Math.pow(vector[0],2) + Math.pow(vector[1],2));
+  vector = [ vector[0]/ vectorDist, vector[1]/vectorDist];
+  missileArr.push(new Missile({x: playerAbsPos.left, y:playerAbsPos.top, vector:vector}, id));
+  console.log(missileArr);
+  id += 1;
+  console.log('missile fired');
+}
+
+$('#player').bind('tbg:player', playerAction );
+
+function playerAction(){
+  console.log('player moves');
+  var offset = player.offset();
+  switch (event.which) {
+    case 37 || 65:
+        // Key left.
+        move(offset, 0, -1);
+        break;
+    case 38 || 87:
+        // Key up.
+        move(offset, -1, 0);
+        break;
+    case 39 || 68:
+        // Key right.
+        move(offset, 0, 1);
+        break;
+    case 40 || 83:
+        // Key down.
+        move(offset, 1, 0);
+        break;
+    case 32:
+        // spacebar == attack
+        playerAttack();
+        break;
+  }
+  // console.log(event);
+}
+
+function move(offset, x, y){
+  player.offset({ top: offset.top + (x * moveScale), left: offset.left + (y * moveScale) });
+}
+
+// function init(){
+//   Enemy = new Character(characters.enemy);
+//   User.curHP = User.healthPoints;
+//   checkXP();
+//   $('#user-display').bind('tbg:user-attack', userTurn );
+//   $('#user-display').find('.stat-holder').html(statbar(User));
+//   $('#opponent-display').find('.stat-holder').html(statbar(Enemy));
+//   $('.log').html('');
+// }
+// function checkXP(){
+//   if(User.xp > (User.level*19)){
+//     levelUp();
+//   }
+// }
+// function levelUp(){
+//   User.damageLow += 1;
+//   User.damageHigh += 2;
+//   User.healthPoints += 10;
+//   User.level += 1;
+//   User.nextlevel = User.level * 19;
+//   alert('you have leveled up and gotten stronger!');
+// }
+//
+// function rollDamage(lo, hi){
+//   return _.random(lo, hi);
+// }
+// function dealDamage( Char, damage ){
+//   Char.curHP -= damage;
+// }
+// function checkWin(){
+//     if( User.curHP <= 0){
+//       alert( 'you lose and your character loses 10xp :(');
+//       User.xp -= 10;
+//       init();
+//       return true;
+//     }
+//     if( Enemy.curHP <= 0){
+//       alert( 'you win and gain ' + Enemy.xp + 'xp!');
+//       User.xp += Enemy.xp;
+//       init();
+//       return true;
+//     }
+//     return false;
+// }
+//
+//
+// function enemyTurn(event){
+//   $('#user-display').bind('tbg:user-attack', userTurn );
+//   var damage = Enemy.rollDamage();
+//   User.takeDamage(damage);
+//   $('#opponent-display').find('.log').append('Enemy Attacked Your For ' + damage + '<br>');
+//   $('#user-display').find('.stat-holder').html(statbar(User));
+//   if( !checkWin() ){
+//     $('#opponent-display').find('.alert').html('Enemy Attacked!');
+//     $('#user-display .alert').html('Click to Attack...');
+//   }
+// }
+//
+// function userTurn(event){
+//   $(this).unbind("tbg:user-attack");
+//   var damage = User.rollDamage();
+//   Enemy.takeDamage(damage);
+//   $(this).find('.log').append('You Attacked For ' + damage + '<br>');
+//   $('#opponent-display').find('.stat-holder').html(statbar(Enemy));
+//   $(this).find('.alert').html('You Attacked!');
+//   if( !checkWin() ){
+//     $('#opponent-display .alert').html('attacking you...');
+//     window.setTimeout( enemyTurn, 500 );
+//   }
+// }
+
+// init();
+
+},{"../templates/statbar.handlebars":3,"./characters":1,"handlebars":34,"jquery":47,"underscore":50}],3:[function(require,module,exports){
+>>>>>>> 1826b12... working on adding character and shooting missiles
 "use strict";
 var templater = require("handlebars/runtime")["default"].template;module.exports = templater({"1":function(container,depth0,helpers,partials,data) {
     var alias1=container.lambda, alias2=container.escapeExpression;
 
+<<<<<<< HEAD
   return "<div class=\"hp-holder holder\">\n  <span>HP: </span><span class=\"hp\">"
     + alias2(alias1((depth0 != null ? depth0.curHP : depth0), depth0))
     + " / "
@@ -368,6 +596,30 @@ var templater = require("handlebars/runtime")["default"].template;module.exports
     + "</span>\n</div>\n";
 },"useData":true});
 },{"handlebars/runtime":45}],3:[function(require,module,exports){
+=======
+  return "<div class=\"xp-holder holder\">\n  <span>XP: </span><span class=\"xp\">"
+    + alias2(alias1((depth0 != null ? depth0.xp : depth0), depth0))
+    + "</span>\n</div>\n<div class=\"next-level-holder holder\">\n  <span>Next Level At: </span><span class=\"next\">"
+    + alias2(alias1((depth0 != null ? depth0.nextlevel : depth0), depth0))
+    + "</span>\n</div>\n";
+},"compiler":[7,">= 4.0.0"],"main":function(container,depth0,helpers,partials,data) {
+    var stack1, alias1=container.lambda, alias2=container.escapeExpression;
+
+  return "<!DOCTYPE html>\n<div class=\"hp-holder holder\">\n  <span>HP: </span><span class=\"hp\">"
+    + alias2(alias1((depth0 != null ? depth0.curHP : depth0), depth0))
+    + " / "
+    + alias2(alias1((depth0 != null ? depth0.healthPoints : depth0), depth0))
+    + "</span>\n</div>\n<div class=\"attack-holder holder\">\n  <span>Attack: </span><span class=\"attack\">"
+    + alias2(alias1((depth0 != null ? depth0.damageLow : depth0), depth0))
+    + " - "
+    + alias2(alias1((depth0 != null ? depth0.damageHigh : depth0), depth0))
+    + "</span>\n</div>\n<div class=\"level-holder holder\">\n  <span>Level: </span><span class=\"level\">"
+    + alias2(alias1((depth0 != null ? depth0.level : depth0), depth0))
+    + "</span>\n</div>\n"
+    + ((stack1 = helpers["if"].call(depth0 != null ? depth0 : {},(depth0 != null ? depth0.reaction : depth0),{"name":"if","hash":{},"fn":container.program(1, data, 0),"inverse":container.noop,"data":data})) != null ? stack1 : "");
+},"useData":true});
+},{"handlebars/runtime":46}],4:[function(require,module,exports){
+>>>>>>> 1826b12... working on adding character and shooting missiles
 (function (process,__filename){
 /** vim: et:ts=4:sw=4:sts=4
  * @license amdefine 1.0.0 Copyright (c) 2011-2015, The Dojo Foundation All Rights Reserved.
@@ -672,7 +924,11 @@ function amdefine(module, requireFn) {
 module.exports = amdefine;
 
 }).call(this,require('_process'),"/node_modules/amdefine/amdefine.js")
+<<<<<<< HEAD
 },{"_process":48,"path":47}],4:[function(require,module,exports){
+=======
+},{"_process":49,"path":48}],5:[function(require,module,exports){
+>>>>>>> 1826b12... working on adding character and shooting missiles
 'use strict';
 
 exports.__esModule = true;
@@ -739,7 +995,11 @@ exports['default'] = inst;
 module.exports = exports['default'];
 
 
+<<<<<<< HEAD
 },{"./handlebars.runtime":5,"./handlebars/compiler/ast":7,"./handlebars/compiler/base":8,"./handlebars/compiler/compiler":10,"./handlebars/compiler/javascript-compiler":12,"./handlebars/compiler/visitor":15,"./handlebars/no-conflict":29}],5:[function(require,module,exports){
+=======
+},{"./handlebars.runtime":6,"./handlebars/compiler/ast":8,"./handlebars/compiler/base":9,"./handlebars/compiler/compiler":11,"./handlebars/compiler/javascript-compiler":13,"./handlebars/compiler/visitor":16,"./handlebars/no-conflict":30}],6:[function(require,module,exports){
+>>>>>>> 1826b12... working on adding character and shooting missiles
 'use strict';
 
 exports.__esModule = true;
@@ -807,7 +1067,11 @@ exports['default'] = inst;
 module.exports = exports['default'];
 
 
+<<<<<<< HEAD
 },{"./handlebars/base":6,"./handlebars/exception":19,"./handlebars/no-conflict":29,"./handlebars/runtime":30,"./handlebars/safe-string":31,"./handlebars/utils":32}],6:[function(require,module,exports){
+=======
+},{"./handlebars/base":7,"./handlebars/exception":20,"./handlebars/no-conflict":30,"./handlebars/runtime":31,"./handlebars/safe-string":32,"./handlebars/utils":33}],7:[function(require,module,exports){
+>>>>>>> 1826b12... working on adding character and shooting missiles
 'use strict';
 
 exports.__esModule = true;
@@ -913,7 +1177,11 @@ exports.createFrame = _utils.createFrame;
 exports.logger = _logger2['default'];
 
 
+<<<<<<< HEAD
 },{"./decorators":17,"./exception":19,"./helpers":20,"./logger":28,"./utils":32}],7:[function(require,module,exports){
+=======
+},{"./decorators":18,"./exception":20,"./helpers":21,"./logger":29,"./utils":33}],8:[function(require,module,exports){
+>>>>>>> 1826b12... working on adding character and shooting missiles
 'use strict';
 
 exports.__esModule = true;
@@ -946,7 +1214,11 @@ exports['default'] = AST;
 module.exports = exports['default'];
 
 
+<<<<<<< HEAD
 },{}],8:[function(require,module,exports){
+=======
+},{}],9:[function(require,module,exports){
+>>>>>>> 1826b12... working on adding character and shooting missiles
 'use strict';
 
 exports.__esModule = true;
@@ -996,7 +1268,11 @@ function parse(input, options) {
 }
 
 
+<<<<<<< HEAD
 },{"../utils":32,"./helpers":11,"./parser":13,"./whitespace-control":16}],9:[function(require,module,exports){
+=======
+},{"../utils":33,"./helpers":12,"./parser":14,"./whitespace-control":17}],10:[function(require,module,exports){
+>>>>>>> 1826b12... working on adding character and shooting missiles
 /* global define */
 'use strict';
 
@@ -1164,7 +1440,11 @@ exports['default'] = CodeGen;
 module.exports = exports['default'];
 
 
+<<<<<<< HEAD
 },{"../utils":32,"source-map":34}],10:[function(require,module,exports){
+=======
+},{"../utils":33,"source-map":35}],11:[function(require,module,exports){
+>>>>>>> 1826b12... working on adding character and shooting missiles
 /* eslint-disable new-cap */
 
 'use strict';
@@ -1738,7 +2018,11 @@ function transformLiteralToPath(sexpr) {
 }
 
 
+<<<<<<< HEAD
 },{"../exception":19,"../utils":32,"./ast":7}],11:[function(require,module,exports){
+=======
+},{"../exception":20,"../utils":33,"./ast":8}],12:[function(require,module,exports){
+>>>>>>> 1826b12... working on adding character and shooting missiles
 'use strict';
 
 exports.__esModule = true;
@@ -1970,7 +2254,11 @@ function preparePartialBlock(open, program, close, locInfo) {
 }
 
 
+<<<<<<< HEAD
 },{"../exception":19}],12:[function(require,module,exports){
+=======
+},{"../exception":20}],13:[function(require,module,exports){
+>>>>>>> 1826b12... working on adding character and shooting missiles
 'use strict';
 
 exports.__esModule = true;
@@ -3098,7 +3386,11 @@ exports['default'] = JavaScriptCompiler;
 module.exports = exports['default'];
 
 
+<<<<<<< HEAD
 },{"../base":6,"../exception":19,"../utils":32,"./code-gen":9}],13:[function(require,module,exports){
+=======
+},{"../base":7,"../exception":20,"../utils":33,"./code-gen":10}],14:[function(require,module,exports){
+>>>>>>> 1826b12... working on adding character and shooting missiles
 /* istanbul ignore next */
 /* Jison generated parser */
 "use strict";
@@ -3838,7 +4130,11 @@ var handlebars = (function () {
 exports['default'] = handlebars;
 
 
+<<<<<<< HEAD
 },{}],14:[function(require,module,exports){
+=======
+},{}],15:[function(require,module,exports){
+>>>>>>> 1826b12... working on adding character and shooting missiles
 /* eslint-disable new-cap */
 'use strict';
 
@@ -4026,7 +4322,11 @@ PrintVisitor.prototype.HashPair = function (pair) {
 /* eslint-enable new-cap */
 
 
+<<<<<<< HEAD
 },{"./visitor":15}],15:[function(require,module,exports){
+=======
+},{"./visitor":16}],16:[function(require,module,exports){
+>>>>>>> 1826b12... working on adding character and shooting missiles
 'use strict';
 
 exports.__esModule = true;
@@ -4168,7 +4468,11 @@ exports['default'] = Visitor;
 module.exports = exports['default'];
 
 
+<<<<<<< HEAD
 },{"../exception":19}],16:[function(require,module,exports){
+=======
+},{"../exception":20}],17:[function(require,module,exports){
+>>>>>>> 1826b12... working on adding character and shooting missiles
 'use strict';
 
 exports.__esModule = true;
@@ -4391,7 +4695,11 @@ exports['default'] = WhitespaceControl;
 module.exports = exports['default'];
 
 
+<<<<<<< HEAD
 },{"./visitor":15}],17:[function(require,module,exports){
+=======
+},{"./visitor":16}],18:[function(require,module,exports){
+>>>>>>> 1826b12... working on adding character and shooting missiles
 'use strict';
 
 exports.__esModule = true;
@@ -4409,7 +4717,11 @@ function registerDefaultDecorators(instance) {
 }
 
 
+<<<<<<< HEAD
 },{"./decorators/inline":18}],18:[function(require,module,exports){
+=======
+},{"./decorators/inline":19}],19:[function(require,module,exports){
+>>>>>>> 1826b12... working on adding character and shooting missiles
 'use strict';
 
 exports.__esModule = true;
@@ -4440,7 +4752,11 @@ exports['default'] = function (instance) {
 module.exports = exports['default'];
 
 
+<<<<<<< HEAD
 },{"../utils":32}],19:[function(require,module,exports){
+=======
+},{"../utils":33}],20:[function(require,module,exports){
+>>>>>>> 1826b12... working on adding character and shooting missiles
 'use strict';
 
 exports.__esModule = true;
@@ -4482,7 +4798,11 @@ exports['default'] = Exception;
 module.exports = exports['default'];
 
 
+<<<<<<< HEAD
 },{}],20:[function(require,module,exports){
+=======
+},{}],21:[function(require,module,exports){
+>>>>>>> 1826b12... working on adding character and shooting missiles
 'use strict';
 
 exports.__esModule = true;
@@ -4530,7 +4850,11 @@ function registerDefaultHelpers(instance) {
 }
 
 
+<<<<<<< HEAD
 },{"./helpers/block-helper-missing":21,"./helpers/each":22,"./helpers/helper-missing":23,"./helpers/if":24,"./helpers/log":25,"./helpers/lookup":26,"./helpers/with":27}],21:[function(require,module,exports){
+=======
+},{"./helpers/block-helper-missing":22,"./helpers/each":23,"./helpers/helper-missing":24,"./helpers/if":25,"./helpers/log":26,"./helpers/lookup":27,"./helpers/with":28}],22:[function(require,module,exports){
+>>>>>>> 1826b12... working on adding character and shooting missiles
 'use strict';
 
 exports.__esModule = true;
@@ -4571,7 +4895,11 @@ exports['default'] = function (instance) {
 module.exports = exports['default'];
 
 
+<<<<<<< HEAD
 },{"../utils":32}],22:[function(require,module,exports){
+=======
+},{"../utils":33}],23:[function(require,module,exports){
+>>>>>>> 1826b12... working on adding character and shooting missiles
 'use strict';
 
 exports.__esModule = true;
@@ -4667,7 +4995,11 @@ exports['default'] = function (instance) {
 module.exports = exports['default'];
 
 
+<<<<<<< HEAD
 },{"../exception":19,"../utils":32}],23:[function(require,module,exports){
+=======
+},{"../exception":20,"../utils":33}],24:[function(require,module,exports){
+>>>>>>> 1826b12... working on adding character and shooting missiles
 'use strict';
 
 exports.__esModule = true;
@@ -4694,7 +5026,11 @@ exports['default'] = function (instance) {
 module.exports = exports['default'];
 
 
+<<<<<<< HEAD
 },{"../exception":19}],24:[function(require,module,exports){
+=======
+},{"../exception":20}],25:[function(require,module,exports){
+>>>>>>> 1826b12... working on adding character and shooting missiles
 'use strict';
 
 exports.__esModule = true;
@@ -4725,7 +5061,11 @@ exports['default'] = function (instance) {
 module.exports = exports['default'];
 
 
+<<<<<<< HEAD
 },{"../utils":32}],25:[function(require,module,exports){
+=======
+},{"../utils":33}],26:[function(require,module,exports){
+>>>>>>> 1826b12... working on adding character and shooting missiles
 'use strict';
 
 exports.__esModule = true;
@@ -4753,7 +5093,11 @@ exports['default'] = function (instance) {
 module.exports = exports['default'];
 
 
+<<<<<<< HEAD
 },{}],26:[function(require,module,exports){
+=======
+},{}],27:[function(require,module,exports){
+>>>>>>> 1826b12... working on adding character and shooting missiles
 'use strict';
 
 exports.__esModule = true;
@@ -4767,7 +5111,11 @@ exports['default'] = function (instance) {
 module.exports = exports['default'];
 
 
+<<<<<<< HEAD
 },{}],27:[function(require,module,exports){
+=======
+},{}],28:[function(require,module,exports){
+>>>>>>> 1826b12... working on adding character and shooting missiles
 'use strict';
 
 exports.__esModule = true;
@@ -4802,7 +5150,11 @@ exports['default'] = function (instance) {
 module.exports = exports['default'];
 
 
+<<<<<<< HEAD
 },{"../utils":32}],28:[function(require,module,exports){
+=======
+},{"../utils":33}],29:[function(require,module,exports){
+>>>>>>> 1826b12... working on adding character and shooting missiles
 'use strict';
 
 exports.__esModule = true;
@@ -4851,7 +5203,11 @@ exports['default'] = logger;
 module.exports = exports['default'];
 
 
+<<<<<<< HEAD
 },{"./utils":32}],29:[function(require,module,exports){
+=======
+},{"./utils":33}],30:[function(require,module,exports){
+>>>>>>> 1826b12... working on adding character and shooting missiles
 (function (global){
 /* global window */
 'use strict';
@@ -4875,7 +5231,11 @@ module.exports = exports['default'];
 
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+<<<<<<< HEAD
 },{}],30:[function(require,module,exports){
+=======
+},{}],31:[function(require,module,exports){
+>>>>>>> 1826b12... working on adding character and shooting missiles
 'use strict';
 
 exports.__esModule = true;
@@ -5169,7 +5529,11 @@ function executeDecorators(fn, prog, container, depths, data, blockParams) {
 }
 
 
+<<<<<<< HEAD
 },{"./base":6,"./exception":19,"./utils":32}],31:[function(require,module,exports){
+=======
+},{"./base":7,"./exception":20,"./utils":33}],32:[function(require,module,exports){
+>>>>>>> 1826b12... working on adding character and shooting missiles
 // Build out our basic SafeString type
 'use strict';
 
@@ -5186,7 +5550,11 @@ exports['default'] = SafeString;
 module.exports = exports['default'];
 
 
+<<<<<<< HEAD
 },{}],32:[function(require,module,exports){
+=======
+},{}],33:[function(require,module,exports){
+>>>>>>> 1826b12... working on adding character and shooting missiles
 'use strict';
 
 exports.__esModule = true;
@@ -5312,7 +5680,11 @@ function appendContextPath(contextPath, id) {
 }
 
 
+<<<<<<< HEAD
 },{}],33:[function(require,module,exports){
+=======
+},{}],34:[function(require,module,exports){
+>>>>>>> 1826b12... working on adding character and shooting missiles
 // USAGE:
 // var handlebars = require('handlebars');
 /* eslint-disable no-var */
@@ -5339,7 +5711,11 @@ if (typeof require !== 'undefined' && require.extensions) {
   require.extensions['.hbs'] = extension;
 }
 
+<<<<<<< HEAD
 },{"../dist/cjs/handlebars":4,"../dist/cjs/handlebars/compiler/printer":14,"fs":50}],34:[function(require,module,exports){
+=======
+},{"../dist/cjs/handlebars":5,"../dist/cjs/handlebars/compiler/printer":15,"fs":51}],35:[function(require,module,exports){
+>>>>>>> 1826b12... working on adding character and shooting missiles
 /*
  * Copyright 2009-2011 Mozilla Foundation and contributors
  * Licensed under the New BSD license. See LICENSE.txt or:
@@ -5349,7 +5725,11 @@ exports.SourceMapGenerator = require('./source-map/source-map-generator').Source
 exports.SourceMapConsumer = require('./source-map/source-map-consumer').SourceMapConsumer;
 exports.SourceNode = require('./source-map/source-node').SourceNode;
 
+<<<<<<< HEAD
 },{"./source-map/source-map-consumer":41,"./source-map/source-map-generator":42,"./source-map/source-node":43}],35:[function(require,module,exports){
+=======
+},{"./source-map/source-map-consumer":42,"./source-map/source-map-generator":43,"./source-map/source-node":44}],36:[function(require,module,exports){
+>>>>>>> 1826b12... working on adding character and shooting missiles
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -5458,7 +5838,11 @@ define(function (require, exports, module) {
 
 });
 
+<<<<<<< HEAD
 },{"./util":44,"amdefine":3}],36:[function(require,module,exports){
+=======
+},{"./util":45,"amdefine":4}],37:[function(require,module,exports){
+>>>>>>> 1826b12... working on adding character and shooting missiles
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -5606,7 +5990,11 @@ define(function (require, exports, module) {
 
 });
 
+<<<<<<< HEAD
 },{"./base64":37,"amdefine":3}],37:[function(require,module,exports){
+=======
+},{"./base64":38,"amdefine":4}],38:[function(require,module,exports){
+>>>>>>> 1826b12... working on adding character and shooting missiles
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -5681,7 +6069,11 @@ define(function (require, exports, module) {
 
 });
 
+<<<<<<< HEAD
 },{"amdefine":3}],38:[function(require,module,exports){
+=======
+},{"amdefine":4}],39:[function(require,module,exports){
+>>>>>>> 1826b12... working on adding character and shooting missiles
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -5800,7 +6192,11 @@ define(function (require, exports, module) {
 
 });
 
+<<<<<<< HEAD
 },{"amdefine":3}],39:[function(require,module,exports){
+=======
+},{"amdefine":4}],40:[function(require,module,exports){
+>>>>>>> 1826b12... working on adding character and shooting missiles
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2014 Mozilla Foundation and contributors
@@ -5888,7 +6284,11 @@ define(function (require, exports, module) {
 
 });
 
+<<<<<<< HEAD
 },{"./util":44,"amdefine":3}],40:[function(require,module,exports){
+=======
+},{"./util":45,"amdefine":4}],41:[function(require,module,exports){
+>>>>>>> 1826b12... working on adding character and shooting missiles
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -6010,7 +6410,11 @@ define(function (require, exports, module) {
 
 });
 
+<<<<<<< HEAD
 },{"amdefine":3}],41:[function(require,module,exports){
+=======
+},{"amdefine":4}],42:[function(require,module,exports){
+>>>>>>> 1826b12... working on adding character and shooting missiles
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -7089,7 +7493,11 @@ define(function (require, exports, module) {
 
 });
 
+<<<<<<< HEAD
 },{"./array-set":35,"./base64-vlq":36,"./binary-search":38,"./quick-sort":40,"./util":44,"amdefine":3}],42:[function(require,module,exports){
+=======
+},{"./array-set":36,"./base64-vlq":37,"./binary-search":39,"./quick-sort":41,"./util":45,"amdefine":4}],43:[function(require,module,exports){
+>>>>>>> 1826b12... working on adding character and shooting missiles
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -7490,7 +7898,11 @@ define(function (require, exports, module) {
 
 });
 
+<<<<<<< HEAD
 },{"./array-set":35,"./base64-vlq":36,"./mapping-list":39,"./util":44,"amdefine":3}],43:[function(require,module,exports){
+=======
+},{"./array-set":36,"./base64-vlq":37,"./mapping-list":40,"./util":45,"amdefine":4}],44:[function(require,module,exports){
+>>>>>>> 1826b12... working on adding character and shooting missiles
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -7906,7 +8318,11 @@ define(function (require, exports, module) {
 
 });
 
+<<<<<<< HEAD
 },{"./source-map-generator":42,"./util":44,"amdefine":3}],44:[function(require,module,exports){
+=======
+},{"./source-map-generator":43,"./util":45,"amdefine":4}],45:[function(require,module,exports){
+>>>>>>> 1826b12... working on adding character and shooting missiles
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -8278,12 +8694,20 @@ define(function (require, exports, module) {
 
 });
 
+<<<<<<< HEAD
 },{"amdefine":3}],45:[function(require,module,exports){
+=======
+},{"amdefine":4}],46:[function(require,module,exports){
+>>>>>>> 1826b12... working on adding character and shooting missiles
 // Create a simple path alias to allow browserify to resolve
 // the runtime on a supported path.
 module.exports = require('./dist/cjs/handlebars.runtime')['default'];
 
+<<<<<<< HEAD
 },{"./dist/cjs/handlebars.runtime":5}],46:[function(require,module,exports){
+=======
+},{"./dist/cjs/handlebars.runtime":6}],47:[function(require,module,exports){
+>>>>>>> 1826b12... working on adding character and shooting missiles
 /*!
  * jQuery JavaScript Library v2.2.1
  * http://jquery.com/
@@ -18116,7 +18540,11 @@ if ( !noGlobal ) {
 return jQuery;
 }));
 
+<<<<<<< HEAD
 },{}],47:[function(require,module,exports){
+=======
+},{}],48:[function(require,module,exports){
+>>>>>>> 1826b12... working on adding character and shooting missiles
 (function (process){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -18344,7 +18772,11 @@ var substr = 'ab'.substr(-1) === 'b'
 ;
 
 }).call(this,require('_process'))
+<<<<<<< HEAD
 },{"_process":48}],48:[function(require,module,exports){
+=======
+},{"_process":49}],49:[function(require,module,exports){
+>>>>>>> 1826b12... working on adding character and shooting missiles
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -18437,7 +18869,11 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
+<<<<<<< HEAD
 },{}],49:[function(require,module,exports){
+=======
+},{}],50:[function(require,module,exports){
+>>>>>>> 1826b12... working on adding character and shooting missiles
 //     Underscore.js 1.8.3
 //     http://underscorejs.org
 //     (c) 2009-2015 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
@@ -19987,6 +20423,12 @@ process.umask = function() { return 0; };
   }
 }.call(this));
 
+<<<<<<< HEAD
 },{}],50:[function(require,module,exports){
 
 },{}]},{},[1]);
+=======
+},{}],51:[function(require,module,exports){
+
+},{}]},{},[2]);
+>>>>>>> 1826b12... working on adding character and shooting missiles

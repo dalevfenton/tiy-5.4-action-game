@@ -34,19 +34,19 @@ img {
   color: red; }
 
 .stat-holder {
-  position: absolute;
-  width: 25%;
-  top: 10px;
-  left: 0; }
+  width: 100%; }
+
+#display-holder {
+  margin-bottom: 75px; }
 
 #game-field {
   border: 2px solid black;
   box-shadow: 0 0 5px 10px rgba(0, 0, 0, 0.5);
   border-radius: 10px;
   position: relative;
-  margin-top: 75px;
   width: 100%;
-  height: 500px; }
+  height: 500px;
+  overflow: hidden; }
 
 #player {
   position: absolute;
@@ -65,29 +65,37 @@ img {
   transition: .033s; }
 
 .target {
-  position: absolute;
   width: 30px;
   height: 30px;
   border-radius: 15px;
+  content: '';
+  position: absolute;
   background: red;
-  border: 1px solid black; }
+  border: 1px solid black;
+  transition: .01s; }
   .target::before {
-    position: absolute;
-    content: '';
     width: 20px;
     height: 20px;
     border-radius: 10px;
+    content: '';
+    position: absolute;
     background: blue;
     left: 4px;
     top: 4px; }
   .target::after {
-    position: absolute;
-    content: '';
     width: 10px;
     height: 10px;
     border-radius: 5px;
+    content: '';
+    position: absolute;
     background: white;
     top: 9px;
     left: 9px; }
+
+.test-obj {
+  position: absolute;
+  height: 5px;
+  width: 5px;
+  background: green; }
 
 /*# sourceMappingURL=app.css.map */

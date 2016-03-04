@@ -1,46 +1,37 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 "use strict";
-module.exports = {
-  user: {
-    low: _.random(3,5),
-    high: _.random(8,10),
-    hp: _.random(50,60),
-    level: 1,
-    xp: 0,
-    react: 'friendly'
-  },
-  enemy: {
-    low: _.random(1,5),
-    high: _.random(5,10),
-    hp: _.random(20,30),
-    level: 1,
-    xp: 10
-  },
-  archer: {
-    low: _.random(1,3),
-    high: _.random(4,15),
-    hp: _.random(10,20),
-    level: 1,
-    xp: 8
-  }
-};
+//features to add
+//upgrades with levelups
+//set missiles to non-penetrating
+//upgrades weapon (flamethrower, aoe on impact, spread, multi shot)
+//sprites for character and enemies
+//harder enemies as levelup
+//start & pause menu
+//gradual start with loading of enemies
+//save game / high scores
+//multiplayer
 
-},{}],2:[function(require,module,exports){
-"use strict";
 var $ = require('jquery');
 window._ = require('underscore');
 var Handlebars = require('handlebars');
-var id = 1;
-var missileArr = [];
-//-----------------------------------------------------------------------------
-//                        TEMPLATES
-//to include an external handlebars template named header.handlebars
-//just do a var header = require("./header.handlebars") assuming it is in
-//the scripts folder
-//-----------------------------------------------------------------------------
+
 var statbar = require('../templates/statbar.handlebars');
-var moveScale = 30;
-var missileSpeed = 50;
+
+
+
+//id is used to set unique identifiers on each object created so that we
+//can set a unique id on the HTML elements and select them to move or remove
+var id = 1;
+
+//missileArr holds a list of Missile objects and iterates over them on each
+//window refresh to move them and detect collisions
+var missileArr = [];
+//windowpadding is used to make sure targets do not spawn too close to the edge
+//of the window
+var windowPadding = 50;
+
+//setup bounds of the game field so we can tell if missiles or characters have
+//gone offscreen and remove them from our tracking
 var boardOffset = $('#game-field').offset();
 var boardWidth = $('#game-field').outerWidth();
 var boardHeight = $('#game-field').outerHeight();
@@ -48,23 +39,143 @@ var boardTop = boardOffset.top;
 var boardLeft = boardOffset.left;
 var boardBottom = boardTop + boardHeight;
 var boardRight = boardLeft + boardWidth;
-console.log($('#game-field'));
-console.log(boardTop, boardBottom, boardLeft, boardRight);
-var windowPadding = 50;
-function Target(){
+var screenRefresh = 33;
+
+$('#test-obj-top').offset({top: boardTop, left: boardRight});
+$('#test-obj-bottom').offset({top: boardBottom, left: boardRight});
+
+function Missile(config){
   this.id = id;
+  id += 1;
+  this.x = (config.x || 0);
+  this.y = (config.y || 0);
+  this.speed = (config.speed || 50);
+  this.vector = (config.vector || [1,1]);
+  this.move = function(){
+    this.x += this.vector[0] * this.speed;
+    this.y += this.vector[1] * this.speed;
+    $('#missile-'+this.id).offset({ top: this.y, left: this.x });
+  };
+  this.draw = function(){
+    $('#game-field').append('<div id="missile-' + this.id + '" class="missile">');
+    $("#missile-" + this.id).offset({top: this.y, left: this.x});
+  };
+}
+
+function Target(config){
+  this.id = id;
+  this.speed = 1;
+  this.xp = 10;
+  this.score = 10;
   id += 1;
   this.x = _.random(boardLeft+windowPadding, boardRight-windowPadding);
   this.y = _.random(boardTop+windowPadding, boardBottom-windowPadding);
   this.draw = function(){
-      $('#game-field').append('<div id="target-' + this.id + '" class="target">');
-      $("#target-" + this.id).offset({top: this.y, left: this.x});
+    $('#game-field').append('<div id="target-' + this.id + '" class="target">');
+    $("#target-" + this.id).offset({top: this.y, left: this.x});
+  };
+  this.move = function(){
+    var vector = normalizedVector(player.x, player.y, this.x, this.y);
+    this.x += vector[0] * this.speed;
+    this.y += vector[1] * this.speed;
+    $("#target-" + this.id).offset({top: this.y, left: this.x});
   };
 }
-var interval = window.setInterval(moveMissile, 33);
-function pyTheorum(){
 
+function calcLevel(level){
+  return (25 * level * ( 1 + level ));
 }
+var player = {
+  x: $('#player').offset().left,
+  y: $('#player').offset().top,
+  selector: '#player',
+  speed: 30,
+  xp: 0,
+  level: 1,
+  nextLevel: calcLevel(1),
+  score: 0,
+  timeSinceKill: 0,
+  comboKills: 0,
+  move: function(vector){
+    this.x += vector[0] * this.speed;
+    this.y += vector[1] * this.speed;
+    if(this.x < boardLeft){
+      this.x = boardLeft;
+    }
+    if(this.x > boardRight){
+      this.x = boardRight;
+    }
+    if(this.y < boardTop){
+      this.y = boardTop;
+    }
+    if(this.y > boardBottom){
+      this.y = boardBottom;
+    }
+    $(this.selector).offset({top: this.y, left: this.x});
+  },
+  killedTarget: function(target){
+    this.xp += target.xp;
+    this.comboKills += 1;
+    this.score += (target.score * this.comboKills);
+    this.timeSinceKill = 0;
+    this.checkLevel();
+  },
+  checkCombo: function(){
+    if(this.timeSinceKill > 5000 ){
+      this.comboKills = 0;
+    }
+  },
+  addTime: function(){
+    this.timeSinceKill += screenRefresh;
+  },
+  checkLevel: function(){
+    if(this.xp > this.nextLevel){
+      this.levelUp();
+      console.log(this.level);
+      this.nextLevel = calcLevel(this.level);
+    }
+  },
+  levelUp: function(){
+    this.speed += 1;
+    this.level += 1;
+  }
+};
+// player.offset({ top: offset.top + (x * moveScale), left: offset.left + (y * moveScale) });
+
+$(window).on('keydown', function(){
+  $('#player').trigger('tbg:player');
+});
+$(window).on('click', function(){
+  $(window).trigger('tbg:player-attack');
+  // console.log(event);
+});
+
+//this setInterval function updates our game window at approx 30fps
+var interval = window.setInterval(refreshWindow, screenRefresh);
+
+function refreshWindow(){
+  moveTargets();
+  moveMissiles();
+  while(targetArr.length < 10){
+    var target = new Target();
+    target.draw();
+    targetArr.push(target);
+  }
+  player.addTime();
+  player.checkCombo();
+  $('#user-display').find('.stat-holder').html(statbar(player));
+}
+//pythagorean theorum function to calculate distance between two objects
+//(mainly used to try and detect collisions)
+function pyTheorum(x1, y1, x2, y2){
+ return Math.abs(Math.sqrt( Math.pow((x1 - x2), 2) + Math.pow((y1 - y2), 2)));
+}
+function normalizedVector(x1, y1, x2, y2){
+  var rawVect = [ x1-x2, y1-y2];
+  var dist = pyTheorum(x1, y1, x2, y2);
+  return [ rawVect[0] / dist, rawVect[1] / dist ];
+}
+
 var targetArr = [];
 for(var i = 0; i < 10; i++){
   var target = new Target();
@@ -84,78 +195,36 @@ function collide( sprite ){
     var dist = Math.sqrt( Math.pow((sprite.x - target.x), 2) + Math.pow((sprite.y - target.y), 2));
     if(dist < 30){
       targetArr.splice( index, 1);
-      console.log('removed target #' + target.id);
       $('#target-' + target.id).remove();
+      player.killedTarget(target);
       return true;
     }else{
       return false;
     }
   });
 }
-function moveMissile(){
-  console.log('called move missile');
-  console.log(missileArr);
+function moveTargets(){
+  targetArr.forEach(function(item, index){
+    item.move();
+    // if(collide(item) || !inWindow(item) ){
+    //   targetArr.splice( index, 1);
+    //   console.log('removed target #' + item.id);
+    //   $('#target-' + item.id).remove();
+    // }
+  });
+}
+function moveMissiles(){
   missileArr.forEach(function(item, index){
     item.move();
     if(collide(item) || !inWindow(item) ){
       missileArr.splice( index, 1);
-      console.log('removed missile #' + item.id);
       $('#missile-' + item.id).remove();
     }
   });
 }
-var characters = require('./characters');
-function Missile(config){
-  this.id = id;
-  id += 1;
-  this.x = (config.x || 0);
-  this.y = (config.y || 0);
-  this.vector = (config.vector || [1,1]);
-  this.move = function(){
-    console.log(this.vector);
-    console.log(this.x);
-    console.log(this.y);
-    this.x += this.vector[0] * missileSpeed;
-    this.y += this.vector[1] * missileSpeed;
-    $('#missile-'+this.id).offset({ top: this.y, left: this.x });
-  };
-  this.draw = function(){
-    $('#game-field').append('<div id="missile-' + this.id + '" class="missile">');
-    $("#missile-" + this.id).offset({top: this.y, left: this.x});
-  };
-}
-function Character(config){
-  this.ID = id;
-  this.damageLow = (config.low || _.random(1,6));
-  this.damageHigh = (config.high || _.random(6,11));
-  this.healthPoints = (config.hp || _.random(50,61));
-  this.curHP = this.healthPoints;
-  this.level = (config.level || _.random(1,3));
-  this.nextlevel = this.level * 19;
-  this.xp = (config.xp || 0);
-  this.reaction = (config.react || undefined);
-  this.takeDamage = function(damage){
-    this.curHP -= damage;
-  };
-  this.rollDamage = function(){
-    return _.random(this.damageLow, this.damageHigh);
-  };
-  id += 1;
-}
-
-// var archer = new Character(characters.archer);
-// var User = new Character(characters.user);
-// var Enemy;
-var player = $('#player');
 
 
-$(window).on('keydown', function(){
-  $('#player').trigger('tbg:player');
-});
-$(window).on('click', function(){
-  $(window).trigger('tbg:player-attack');
-  // console.log(event);
-});
+
 
 
 $(window).bind('tbg:player-attack', fireMissile );
@@ -164,152 +233,88 @@ function fireMissile(){
   event.preventDefault();
   var mouseAbsPosX = event.x;
   var mouseAbsPosY = event.y;
-  var playerAbsPos = player.offset();
-  var vector = [ mouseAbsPosX - playerAbsPos.left, mouseAbsPosY - playerAbsPos.top ];
-  var vectorDist = Math.sqrt(Math.pow(vector[0],2) + Math.pow(vector[1],2));
-  vector = [ vector[0]/ vectorDist, vector[1]/vectorDist];
-  var missile = new Missile({x: playerAbsPos.left, y:playerAbsPos.top, vector:vector});
-  console.log(missile);
+  var vector = normalizedVector(event.x, event.y, player.x, player.y );
+  var missile = new Missile({x: player.x, y: player.y, vector:vector});
   missile.draw();
   missileArr.push(missile);
-  console.log('missile fired');
-  console.log(event);
 }
 
 $('#player').bind('tbg:player', playerAction );
 
 function playerAction(){
-  console.log('player moves');
-  var offset = player.offset();
   switch (event.which) {
     case 37 || 65:
         // Key left.
-        move(offset, 0, -1);
+        player.move([-1, 0]);
         break;
     case 38 || 87:
         // Key up.
-        move(offset, -1, 0);
+        player.move([0, -1]);
         break;
     case 39 || 68:
         // Key right.
-        move(offset, 0, 1);
+        player.move([1, 0]);
         break;
     case 40 || 83:
         // Key down.
-        move(offset, 1, 0);
+        player.move([0, 1]);
         break;
     case 32:
         // spacebar == attack
         playerAttack();
         break;
   }
-  // console.log(event);
 }
 
-function move(offset, x, y){
-  player.offset({ top: offset.top + (x * moveScale), left: offset.left + (y * moveScale) });
-}
-
-// function init(){
-//   Enemy = new Character(characters.enemy);
-//   User.curHP = User.healthPoints;
-//   checkXP();
-//   $('#user-display').bind('tbg:user-attack', userTurn );
-//   $('#user-display').find('.stat-holder').html(statbar(User));
-//   $('#opponent-display').find('.stat-holder').html(statbar(Enemy));
-//   $('.log').html('');
-// }
-// function checkXP(){
-//   if(User.xp > (User.level*19)){
-//     levelUp();
-//   }
-// }
-// function levelUp(){
-//   User.damageLow += 1;
-//   User.damageHigh += 2;
-//   User.healthPoints += 10;
-//   User.level += 1;
-//   User.nextlevel = User.level * 19;
-//   alert('you have leveled up and gotten stronger!');
-// }
-//
-// function rollDamage(lo, hi){
-//   return _.random(lo, hi);
-// }
-// function dealDamage( Char, damage ){
-//   Char.curHP -= damage;
-// }
-// function checkWin(){
-//     if( User.curHP <= 0){
-//       alert( 'you lose and your character loses 10xp :(');
-//       User.xp -= 10;
-//       init();
-//       return true;
-//     }
-//     if( Enemy.curHP <= 0){
-//       alert( 'you win and gain ' + Enemy.xp + 'xp!');
-//       User.xp += Enemy.xp;
-//       init();
-//       return true;
-//     }
-//     return false;
-// }
-//
-//
-// function enemyTurn(event){
-//   $('#user-display').bind('tbg:user-attack', userTurn );
-//   var damage = Enemy.rollDamage();
-//   User.takeDamage(damage);
-//   $('#opponent-display').find('.log').append('Enemy Attacked Your For ' + damage + '<br>');
-//   $('#user-display').find('.stat-holder').html(statbar(User));
-//   if( !checkWin() ){
-//     $('#opponent-display').find('.alert').html('Enemy Attacked!');
-//     $('#user-display .alert').html('Click to Attack...');
-//   }
-// }
-//
-// function userTurn(event){
-//   $(this).unbind("tbg:user-attack");
-//   var damage = User.rollDamage();
-//   Enemy.takeDamage(damage);
-//   $(this).find('.log').append('You Attacked For ' + damage + '<br>');
-//   $('#opponent-display').find('.stat-holder').html(statbar(Enemy));
-//   $(this).find('.alert').html('You Attacked!');
-//   if( !checkWin() ){
-//     $('#opponent-display .alert').html('attacking you...');
-//     window.setTimeout( enemyTurn, 500 );
-//   }
-// }
-
-// init();
-
-},{"../templates/statbar.handlebars":3,"./characters":1,"handlebars":34,"jquery":47,"underscore":50}],3:[function(require,module,exports){
+},{"../templates/statbar.handlebars":2,"handlebars":33,"jquery":46,"underscore":49}],2:[function(require,module,exports){
 "use strict";
 var templater = require("handlebars/runtime")["default"].template;module.exports = templater({"1":function(container,depth0,helpers,partials,data) {
     var alias1=container.lambda, alias2=container.escapeExpression;
 
-  return "<div class=\"xp-holder holder\">\n  <span>XP: </span><span class=\"xp\">"
-    + alias2(alias1((depth0 != null ? depth0.xp : depth0), depth0))
-    + "</span>\n</div>\n<div class=\"next-level-holder holder\">\n  <span>Next Level At: </span><span class=\"next\">"
-    + alias2(alias1((depth0 != null ? depth0.nextlevel : depth0), depth0))
-    + "</span>\n</div>\n";
-},"compiler":[7,">= 4.0.0"],"main":function(container,depth0,helpers,partials,data) {
-    var stack1, alias1=container.lambda, alias2=container.escapeExpression;
-
-  return "<!DOCTYPE html>\n<div class=\"hp-holder holder\">\n  <span>HP: </span><span class=\"hp\">"
+  return "<div class=\"hp-holder holder\">\n  <span>HP: </span><span class=\"hp\">"
     + alias2(alias1((depth0 != null ? depth0.curHP : depth0), depth0))
     + " / "
     + alias2(alias1((depth0 != null ? depth0.healthPoints : depth0), depth0))
-    + "</span>\n</div>\n<div class=\"attack-holder holder\">\n  <span>Attack: </span><span class=\"attack\">"
+    + "</span>\n</div>\n";
+},"3":function(container,depth0,helpers,partials,data) {
+    var alias1=container.lambda, alias2=container.escapeExpression;
+
+  return "<div class=\"attack-holder holder\">\n  <span>Attack: </span><span class=\"attack\">"
     + alias2(alias1((depth0 != null ? depth0.damageLow : depth0), depth0))
     + " - "
     + alias2(alias1((depth0 != null ? depth0.damageHigh : depth0), depth0))
-    + "</span>\n</div>\n<div class=\"level-holder holder\">\n  <span>Level: </span><span class=\"level\">"
-    + alias2(alias1((depth0 != null ? depth0.level : depth0), depth0))
-    + "</span>\n</div>\n"
-    + ((stack1 = helpers["if"].call(depth0 != null ? depth0 : {},(depth0 != null ? depth0.reaction : depth0),{"name":"if","hash":{},"fn":container.program(1, data, 0),"inverse":container.noop,"data":data})) != null ? stack1 : "");
+    + "</span>\n</div>\n";
+},"5":function(container,depth0,helpers,partials,data) {
+    return container.escapeExpression(container.lambda((depth0 != null ? depth0.level : depth0), depth0));
+},"7":function(container,depth0,helpers,partials,data) {
+    return "0";
+},"9":function(container,depth0,helpers,partials,data) {
+    return container.escapeExpression(container.lambda((depth0 != null ? depth0.xp : depth0), depth0));
+},"11":function(container,depth0,helpers,partials,data) {
+    return container.escapeExpression(container.lambda((depth0 != null ? depth0.nextLevel : depth0), depth0));
+},"13":function(container,depth0,helpers,partials,data) {
+    return container.escapeExpression(container.lambda((depth0 != null ? depth0.score : depth0), depth0));
+},"15":function(container,depth0,helpers,partials,data) {
+    return container.escapeExpression(container.lambda((depth0 != null ? depth0.comboKills : depth0), depth0));
+},"compiler":[7,">= 4.0.0"],"main":function(container,depth0,helpers,partials,data) {
+    var stack1, alias1=depth0 != null ? depth0 : {};
+
+  return "<!DOCTYPE html>\n"
+    + ((stack1 = helpers["if"].call(alias1,(depth0 != null ? depth0.curHP : depth0),{"name":"if","hash":{},"fn":container.program(1, data, 0),"inverse":container.noop,"data":data})) != null ? stack1 : "")
+    + ((stack1 = helpers["if"].call(alias1,(depth0 != null ? depth0.damageLow : depth0),{"name":"if","hash":{},"fn":container.program(3, data, 0),"inverse":container.noop,"data":data})) != null ? stack1 : "")
+    + "\n<div class=\"level-holder holder\">\n  <span>Level: </span><span class=\"level\">"
+    + ((stack1 = helpers["if"].call(alias1,(depth0 != null ? depth0.level : depth0),{"name":"if","hash":{},"fn":container.program(5, data, 0),"inverse":container.program(7, data, 0),"data":data})) != null ? stack1 : "")
+    + "</span>\n</div>\n\n<div class=\"xp-holder holder\">\n  <span>XP: </span><span class=\"xp\">"
+    + ((stack1 = helpers["if"].call(alias1,(depth0 != null ? depth0.xp : depth0),{"name":"if","hash":{},"fn":container.program(9, data, 0),"inverse":container.program(7, data, 0),"data":data})) != null ? stack1 : "")
+    + "</span>\n</div>\n\n\n<div class=\"next-level-holder holder\">\n  <span>Next Level At: </span><span class=\"next\">"
+    + ((stack1 = helpers["if"].call(alias1,(depth0 != null ? depth0.nextLevel : depth0),{"name":"if","hash":{},"fn":container.program(11, data, 0),"inverse":container.program(7, data, 0),"data":data})) != null ? stack1 : "")
+    + "</span>\n</div>\n\n\n<div class=\"score-holder holder\">\n  <span>Score: </span><span class=\"score\">"
+    + ((stack1 = helpers["if"].call(alias1,(depth0 != null ? depth0.score : depth0),{"name":"if","hash":{},"fn":container.program(13, data, 0),"inverse":container.program(7, data, 0),"data":data})) != null ? stack1 : "")
+    + "</span>\n</div>\n\n<div class=\"combo-holder holder\">\n  <span>Combo Bonus: </span><span class=\"combox\">x"
+    + ((stack1 = helpers["if"].call(alias1,(depth0 != null ? depth0.comboKills : depth0),{"name":"if","hash":{},"fn":container.program(15, data, 0),"inverse":container.program(7, data, 0),"data":data})) != null ? stack1 : "")
+    + "</span>\n</div>\n";
 },"useData":true});
-},{"handlebars/runtime":46}],4:[function(require,module,exports){
+},{"handlebars/runtime":45}],3:[function(require,module,exports){
 (function (process,__filename){
 /** vim: et:ts=4:sw=4:sts=4
  * @license amdefine 1.0.0 Copyright (c) 2011-2015, The Dojo Foundation All Rights Reserved.
@@ -614,7 +619,7 @@ function amdefine(module, requireFn) {
 module.exports = amdefine;
 
 }).call(this,require('_process'),"/node_modules/amdefine/amdefine.js")
-},{"_process":49,"path":48}],5:[function(require,module,exports){
+},{"_process":48,"path":47}],4:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -681,7 +686,7 @@ exports['default'] = inst;
 module.exports = exports['default'];
 
 
-},{"./handlebars.runtime":6,"./handlebars/compiler/ast":8,"./handlebars/compiler/base":9,"./handlebars/compiler/compiler":11,"./handlebars/compiler/javascript-compiler":13,"./handlebars/compiler/visitor":16,"./handlebars/no-conflict":30}],6:[function(require,module,exports){
+},{"./handlebars.runtime":5,"./handlebars/compiler/ast":7,"./handlebars/compiler/base":8,"./handlebars/compiler/compiler":10,"./handlebars/compiler/javascript-compiler":12,"./handlebars/compiler/visitor":15,"./handlebars/no-conflict":29}],5:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -749,7 +754,7 @@ exports['default'] = inst;
 module.exports = exports['default'];
 
 
-},{"./handlebars/base":7,"./handlebars/exception":20,"./handlebars/no-conflict":30,"./handlebars/runtime":31,"./handlebars/safe-string":32,"./handlebars/utils":33}],7:[function(require,module,exports){
+},{"./handlebars/base":6,"./handlebars/exception":19,"./handlebars/no-conflict":29,"./handlebars/runtime":30,"./handlebars/safe-string":31,"./handlebars/utils":32}],6:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -855,7 +860,7 @@ exports.createFrame = _utils.createFrame;
 exports.logger = _logger2['default'];
 
 
-},{"./decorators":18,"./exception":20,"./helpers":21,"./logger":29,"./utils":33}],8:[function(require,module,exports){
+},{"./decorators":17,"./exception":19,"./helpers":20,"./logger":28,"./utils":32}],7:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -888,7 +893,7 @@ exports['default'] = AST;
 module.exports = exports['default'];
 
 
-},{}],9:[function(require,module,exports){
+},{}],8:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -938,7 +943,7 @@ function parse(input, options) {
 }
 
 
-},{"../utils":33,"./helpers":12,"./parser":14,"./whitespace-control":17}],10:[function(require,module,exports){
+},{"../utils":32,"./helpers":11,"./parser":13,"./whitespace-control":16}],9:[function(require,module,exports){
 /* global define */
 'use strict';
 
@@ -1106,7 +1111,7 @@ exports['default'] = CodeGen;
 module.exports = exports['default'];
 
 
-},{"../utils":33,"source-map":35}],11:[function(require,module,exports){
+},{"../utils":32,"source-map":34}],10:[function(require,module,exports){
 /* eslint-disable new-cap */
 
 'use strict';
@@ -1680,7 +1685,7 @@ function transformLiteralToPath(sexpr) {
 }
 
 
-},{"../exception":20,"../utils":33,"./ast":8}],12:[function(require,module,exports){
+},{"../exception":19,"../utils":32,"./ast":7}],11:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -1912,7 +1917,7 @@ function preparePartialBlock(open, program, close, locInfo) {
 }
 
 
-},{"../exception":20}],13:[function(require,module,exports){
+},{"../exception":19}],12:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -3040,7 +3045,7 @@ exports['default'] = JavaScriptCompiler;
 module.exports = exports['default'];
 
 
-},{"../base":7,"../exception":20,"../utils":33,"./code-gen":10}],14:[function(require,module,exports){
+},{"../base":6,"../exception":19,"../utils":32,"./code-gen":9}],13:[function(require,module,exports){
 /* istanbul ignore next */
 /* Jison generated parser */
 "use strict";
@@ -3780,7 +3785,7 @@ var handlebars = (function () {
 exports['default'] = handlebars;
 
 
-},{}],15:[function(require,module,exports){
+},{}],14:[function(require,module,exports){
 /* eslint-disable new-cap */
 'use strict';
 
@@ -3968,7 +3973,7 @@ PrintVisitor.prototype.HashPair = function (pair) {
 /* eslint-enable new-cap */
 
 
-},{"./visitor":16}],16:[function(require,module,exports){
+},{"./visitor":15}],15:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -4110,7 +4115,7 @@ exports['default'] = Visitor;
 module.exports = exports['default'];
 
 
-},{"../exception":20}],17:[function(require,module,exports){
+},{"../exception":19}],16:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -4333,7 +4338,7 @@ exports['default'] = WhitespaceControl;
 module.exports = exports['default'];
 
 
-},{"./visitor":16}],18:[function(require,module,exports){
+},{"./visitor":15}],17:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -4351,7 +4356,7 @@ function registerDefaultDecorators(instance) {
 }
 
 
-},{"./decorators/inline":19}],19:[function(require,module,exports){
+},{"./decorators/inline":18}],18:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -4382,7 +4387,7 @@ exports['default'] = function (instance) {
 module.exports = exports['default'];
 
 
-},{"../utils":33}],20:[function(require,module,exports){
+},{"../utils":32}],19:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -4424,7 +4429,7 @@ exports['default'] = Exception;
 module.exports = exports['default'];
 
 
-},{}],21:[function(require,module,exports){
+},{}],20:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -4472,7 +4477,7 @@ function registerDefaultHelpers(instance) {
 }
 
 
-},{"./helpers/block-helper-missing":22,"./helpers/each":23,"./helpers/helper-missing":24,"./helpers/if":25,"./helpers/log":26,"./helpers/lookup":27,"./helpers/with":28}],22:[function(require,module,exports){
+},{"./helpers/block-helper-missing":21,"./helpers/each":22,"./helpers/helper-missing":23,"./helpers/if":24,"./helpers/log":25,"./helpers/lookup":26,"./helpers/with":27}],21:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -4513,7 +4518,7 @@ exports['default'] = function (instance) {
 module.exports = exports['default'];
 
 
-},{"../utils":33}],23:[function(require,module,exports){
+},{"../utils":32}],22:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -4609,7 +4614,7 @@ exports['default'] = function (instance) {
 module.exports = exports['default'];
 
 
-},{"../exception":20,"../utils":33}],24:[function(require,module,exports){
+},{"../exception":19,"../utils":32}],23:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -4636,7 +4641,7 @@ exports['default'] = function (instance) {
 module.exports = exports['default'];
 
 
-},{"../exception":20}],25:[function(require,module,exports){
+},{"../exception":19}],24:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -4667,7 +4672,7 @@ exports['default'] = function (instance) {
 module.exports = exports['default'];
 
 
-},{"../utils":33}],26:[function(require,module,exports){
+},{"../utils":32}],25:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -4695,7 +4700,7 @@ exports['default'] = function (instance) {
 module.exports = exports['default'];
 
 
-},{}],27:[function(require,module,exports){
+},{}],26:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -4709,7 +4714,7 @@ exports['default'] = function (instance) {
 module.exports = exports['default'];
 
 
-},{}],28:[function(require,module,exports){
+},{}],27:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -4744,7 +4749,7 @@ exports['default'] = function (instance) {
 module.exports = exports['default'];
 
 
-},{"../utils":33}],29:[function(require,module,exports){
+},{"../utils":32}],28:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -4793,7 +4798,7 @@ exports['default'] = logger;
 module.exports = exports['default'];
 
 
-},{"./utils":33}],30:[function(require,module,exports){
+},{"./utils":32}],29:[function(require,module,exports){
 (function (global){
 /* global window */
 'use strict';
@@ -4817,7 +4822,7 @@ module.exports = exports['default'];
 
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],31:[function(require,module,exports){
+},{}],30:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -5111,7 +5116,7 @@ function executeDecorators(fn, prog, container, depths, data, blockParams) {
 }
 
 
-},{"./base":7,"./exception":20,"./utils":33}],32:[function(require,module,exports){
+},{"./base":6,"./exception":19,"./utils":32}],31:[function(require,module,exports){
 // Build out our basic SafeString type
 'use strict';
 
@@ -5128,7 +5133,7 @@ exports['default'] = SafeString;
 module.exports = exports['default'];
 
 
-},{}],33:[function(require,module,exports){
+},{}],32:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -5254,7 +5259,7 @@ function appendContextPath(contextPath, id) {
 }
 
 
-},{}],34:[function(require,module,exports){
+},{}],33:[function(require,module,exports){
 // USAGE:
 // var handlebars = require('handlebars');
 /* eslint-disable no-var */
@@ -5281,7 +5286,7 @@ if (typeof require !== 'undefined' && require.extensions) {
   require.extensions['.hbs'] = extension;
 }
 
-},{"../dist/cjs/handlebars":5,"../dist/cjs/handlebars/compiler/printer":15,"fs":51}],35:[function(require,module,exports){
+},{"../dist/cjs/handlebars":4,"../dist/cjs/handlebars/compiler/printer":14,"fs":50}],34:[function(require,module,exports){
 /*
  * Copyright 2009-2011 Mozilla Foundation and contributors
  * Licensed under the New BSD license. See LICENSE.txt or:
@@ -5291,7 +5296,7 @@ exports.SourceMapGenerator = require('./source-map/source-map-generator').Source
 exports.SourceMapConsumer = require('./source-map/source-map-consumer').SourceMapConsumer;
 exports.SourceNode = require('./source-map/source-node').SourceNode;
 
-},{"./source-map/source-map-consumer":42,"./source-map/source-map-generator":43,"./source-map/source-node":44}],36:[function(require,module,exports){
+},{"./source-map/source-map-consumer":41,"./source-map/source-map-generator":42,"./source-map/source-node":43}],35:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -5400,7 +5405,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./util":45,"amdefine":4}],37:[function(require,module,exports){
+},{"./util":44,"amdefine":3}],36:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -5548,7 +5553,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./base64":38,"amdefine":4}],38:[function(require,module,exports){
+},{"./base64":37,"amdefine":3}],37:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -5623,7 +5628,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"amdefine":4}],39:[function(require,module,exports){
+},{"amdefine":3}],38:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -5742,7 +5747,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"amdefine":4}],40:[function(require,module,exports){
+},{"amdefine":3}],39:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2014 Mozilla Foundation and contributors
@@ -5830,7 +5835,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./util":45,"amdefine":4}],41:[function(require,module,exports){
+},{"./util":44,"amdefine":3}],40:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -5952,7 +5957,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"amdefine":4}],42:[function(require,module,exports){
+},{"amdefine":3}],41:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -7031,7 +7036,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./array-set":36,"./base64-vlq":37,"./binary-search":39,"./quick-sort":41,"./util":45,"amdefine":4}],43:[function(require,module,exports){
+},{"./array-set":35,"./base64-vlq":36,"./binary-search":38,"./quick-sort":40,"./util":44,"amdefine":3}],42:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -7432,7 +7437,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./array-set":36,"./base64-vlq":37,"./mapping-list":40,"./util":45,"amdefine":4}],44:[function(require,module,exports){
+},{"./array-set":35,"./base64-vlq":36,"./mapping-list":39,"./util":44,"amdefine":3}],43:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -7848,7 +7853,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./source-map-generator":43,"./util":45,"amdefine":4}],45:[function(require,module,exports){
+},{"./source-map-generator":42,"./util":44,"amdefine":3}],44:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -8220,12 +8225,12 @@ define(function (require, exports, module) {
 
 });
 
-},{"amdefine":4}],46:[function(require,module,exports){
+},{"amdefine":3}],45:[function(require,module,exports){
 // Create a simple path alias to allow browserify to resolve
 // the runtime on a supported path.
 module.exports = require('./dist/cjs/handlebars.runtime')['default'];
 
-},{"./dist/cjs/handlebars.runtime":6}],47:[function(require,module,exports){
+},{"./dist/cjs/handlebars.runtime":5}],46:[function(require,module,exports){
 /*!
  * jQuery JavaScript Library v2.2.1
  * http://jquery.com/
@@ -18058,7 +18063,7 @@ if ( !noGlobal ) {
 return jQuery;
 }));
 
-},{}],48:[function(require,module,exports){
+},{}],47:[function(require,module,exports){
 (function (process){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -18286,7 +18291,7 @@ var substr = 'ab'.substr(-1) === 'b'
 ;
 
 }).call(this,require('_process'))
-},{"_process":49}],49:[function(require,module,exports){
+},{"_process":48}],48:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -18379,7 +18384,7 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],50:[function(require,module,exports){
+},{}],49:[function(require,module,exports){
 //     Underscore.js 1.8.3
 //     http://underscorejs.org
 //     (c) 2009-2015 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
@@ -19929,6 +19934,6 @@ process.umask = function() { return 0; };
   }
 }.call(this));
 
-},{}],51:[function(require,module,exports){
+},{}],50:[function(require,module,exports){
 
-},{}]},{},[2]);
+},{}]},{},[1]);

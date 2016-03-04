@@ -1,17 +1,35 @@
+//features to add
+//upgrades with levelups
+//set missiles to non-penetrating
+//upgrades weapon (flamethrower, aoe on impact, spread, multi shot)
+//sprites for character and enemies
+//harder enemies as levelup
+//start & pause menu
+//gradual start with loading of enemies
+//save game / high scores
+//multiplayer
+
 var $ = require('jquery');
 window._ = require('underscore');
 var Handlebars = require('handlebars');
-var id = 1;
-var missileArr = [];
-//-----------------------------------------------------------------------------
-//                        TEMPLATES
-//to include an external handlebars template named header.handlebars
-//just do a var header = require("./header.handlebars") assuming it is in
-//the scripts folder
-//-----------------------------------------------------------------------------
+
 var statbar = require('../templates/statbar.handlebars');
-var moveScale = 30;
-var missileSpeed = 50;
+
+
+
+//id is used to set unique identifiers on each object created so that we
+//can set a unique id on the HTML elements and select them to move or remove
+var id = 1;
+
+//missileArr holds a list of Missile objects and iterates over them on each
+//window refresh to move them and detect collisions
+var missileArr = [];
+//windowpadding is used to make sure targets do not spawn too close to the edge
+//of the window
+var windowPadding = 50;
+
+//setup bounds of the game field so we can tell if missiles or characters have
+//gone offscreen and remove them from our tracking
 var boardOffset = $('#game-field').offset();
 var boardWidth = $('#game-field').outerWidth();
 var boardHeight = $('#game-field').outerHeight();
@@ -19,23 +37,143 @@ var boardTop = boardOffset.top;
 var boardLeft = boardOffset.left;
 var boardBottom = boardTop + boardHeight;
 var boardRight = boardLeft + boardWidth;
-console.log($('#game-field'));
-console.log(boardTop, boardBottom, boardLeft, boardRight);
-var windowPadding = 50;
-function Target(){
+var screenRefresh = 33;
+
+$('#test-obj-top').offset({top: boardTop, left: boardRight});
+$('#test-obj-bottom').offset({top: boardBottom, left: boardRight});
+
+function Missile(config){
   this.id = id;
+  id += 1;
+  this.x = (config.x || 0);
+  this.y = (config.y || 0);
+  this.speed = (config.speed || 50);
+  this.vector = (config.vector || [1,1]);
+  this.move = function(){
+    this.x += this.vector[0] * this.speed;
+    this.y += this.vector[1] * this.speed;
+    $('#missile-'+this.id).offset({ top: this.y, left: this.x });
+  };
+  this.draw = function(){
+    $('#game-field').append('<div id="missile-' + this.id + '" class="missile">');
+    $("#missile-" + this.id).offset({top: this.y, left: this.x});
+  };
+}
+
+function Target(config){
+  this.id = id;
+  this.speed = 1;
+  this.xp = 10;
+  this.score = 10;
   id += 1;
   this.x = _.random(boardLeft+windowPadding, boardRight-windowPadding);
   this.y = _.random(boardTop+windowPadding, boardBottom-windowPadding);
   this.draw = function(){
-      $('#game-field').append('<div id="target-' + this.id + '" class="target">');
-      $("#target-" + this.id).offset({top: this.y, left: this.x});
+    $('#game-field').append('<div id="target-' + this.id + '" class="target">');
+    $("#target-" + this.id).offset({top: this.y, left: this.x});
+  };
+  this.move = function(){
+    var vector = normalizedVector(player.x, player.y, this.x, this.y);
+    this.x += vector[0] * this.speed;
+    this.y += vector[1] * this.speed;
+    $("#target-" + this.id).offset({top: this.y, left: this.x});
   };
 }
-var interval = window.setInterval(moveMissile, 33);
-function pyTheorum(){
 
+function calcLevel(level){
+  return (25 * level * ( 1 + level ));
 }
+var player = {
+  x: $('#player').offset().left,
+  y: $('#player').offset().top,
+  selector: '#player',
+  speed: 30,
+  xp: 0,
+  level: 1,
+  nextLevel: calcLevel(1),
+  score: 0,
+  timeSinceKill: 0,
+  comboKills: 0,
+  move: function(vector){
+    this.x += vector[0] * this.speed;
+    this.y += vector[1] * this.speed;
+    if(this.x < boardLeft){
+      this.x = boardLeft;
+    }
+    if(this.x > boardRight){
+      this.x = boardRight;
+    }
+    if(this.y < boardTop){
+      this.y = boardTop;
+    }
+    if(this.y > boardBottom){
+      this.y = boardBottom;
+    }
+    $(this.selector).offset({top: this.y, left: this.x});
+  },
+  killedTarget: function(target){
+    this.xp += target.xp;
+    this.comboKills += 1;
+    this.score += (target.score * this.comboKills);
+    this.timeSinceKill = 0;
+    this.checkLevel();
+  },
+  checkCombo: function(){
+    if(this.timeSinceKill > 5000 ){
+      this.comboKills = 0;
+    }
+  },
+  addTime: function(){
+    this.timeSinceKill += screenRefresh;
+  },
+  checkLevel: function(){
+    if(this.xp > this.nextLevel){
+      this.levelUp();
+      console.log(this.level);
+      this.nextLevel = calcLevel(this.level);
+    }
+  },
+  levelUp: function(){
+    this.speed += 1;
+    this.level += 1;
+  }
+};
+// player.offset({ top: offset.top + (x * moveScale), left: offset.left + (y * moveScale) });
+
+$(window).on('keydown', function(){
+  $('#player').trigger('tbg:player');
+});
+$(window).on('click', function(){
+  $(window).trigger('tbg:player-attack');
+  // console.log(event);
+});
+
+//this setInterval function updates our game window at approx 30fps
+var interval = window.setInterval(refreshWindow, screenRefresh);
+
+function refreshWindow(){
+  moveTargets();
+  moveMissiles();
+  while(targetArr.length < 10){
+    var target = new Target();
+    target.draw();
+    targetArr.push(target);
+  }
+  player.addTime();
+  player.checkCombo();
+  $('#user-display').find('.stat-holder').html(statbar(player));
+}
+//pythagorean theorum function to calculate distance between two objects
+//(mainly used to try and detect collisions)
+function pyTheorum(x1, y1, x2, y2){
+ return Math.abs(Math.sqrt( Math.pow((x1 - x2), 2) + Math.pow((y1 - y2), 2)));
+}
+function normalizedVector(x1, y1, x2, y2){
+  var rawVect = [ x1-x2, y1-y2];
+  var dist = pyTheorum(x1, y1, x2, y2);
+  return [ rawVect[0] / dist, rawVect[1] / dist ];
+}
+
 var targetArr = [];
 for(var i = 0; i < 10; i++){
   var target = new Target();
@@ -55,78 +193,36 @@ function collide( sprite ){
     var dist = Math.sqrt( Math.pow((sprite.x - target.x), 2) + Math.pow((sprite.y - target.y), 2));
     if(dist < 30){
       targetArr.splice( index, 1);
-      console.log('removed target #' + target.id);
       $('#target-' + target.id).remove();
+      player.killedTarget(target);
       return true;
     }else{
       return false;
     }
   });
 }
-function moveMissile(){
-  console.log('called move missile');
-  console.log(missileArr);
+function moveTargets(){
+  targetArr.forEach(function(item, index){
+    item.move();
+    // if(collide(item) || !inWindow(item) ){
+    //   targetArr.splice( index, 1);
+    //   console.log('removed target #' + item.id);
+    //   $('#target-' + item.id).remove();
+    // }
+  });
+}
+function moveMissiles(){
   missileArr.forEach(function(item, index){
     item.move();
     if(collide(item) || !inWindow(item) ){
       missileArr.splice( index, 1);
-      console.log('removed missile #' + item.id);
       $('#missile-' + item.id).remove();
     }
   });
 }
-var characters = require('./characters');
-function Missile(config){
-  this.id = id;
-  id += 1;
-  this.x = (config.x || 0);
-  this.y = (config.y || 0);
-  this.vector = (config.vector || [1,1]);
-  this.move = function(){
-    console.log(this.vector);
-    console.log(this.x);
-    console.log(this.y);
-    this.x += this.vector[0] * missileSpeed;
-    this.y += this.vector[1] * missileSpeed;
-    $('#missile-'+this.id).offset({ top: this.y, left: this.x });
-  };
-  this.draw = function(){
-    $('#game-field').append('<div id="missile-' + this.id + '" class="missile">');
-    $("#missile-" + this.id).offset({top: this.y, left: this.x});
-  };
-}
-function Character(config){
-  this.ID = id;
-  this.damageLow = (config.low || _.random(1,6));
-  this.damageHigh = (config.high || _.random(6,11));
-  this.healthPoints = (config.hp || _.random(50,61));
-  this.curHP = this.healthPoints;
-  this.level = (config.level || _.random(1,3));
-  this.nextlevel = this.level * 19;
-  this.xp = (config.xp || 0);
-  this.reaction = (config.react || undefined);
-  this.takeDamage = function(damage){
-    this.curHP -= damage;
-  };
-  this.rollDamage = function(){
-    return _.random(this.damageLow, this.damageHigh);
-  };
-  id += 1;
-}
-
-// var archer = new Character(characters.archer);
-// var User = new Character(characters.user);
-// var Enemy;
-var player = $('#player');
 
 
-$(window).on('keydown', function(){
-  $('#player').trigger('tbg:player');
-});
-$(window).on('click', function(){
-  $(window).trigger('tbg:player-attack');
-  // console.log(event);
-});
+
 
 
 $(window).bind('tbg:player-attack', fireMissile );
@@ -135,121 +231,35 @@ function fireMissile(){
   event.preventDefault();
   var mouseAbsPosX = event.x;
   var mouseAbsPosY = event.y;
-  var playerAbsPos = player.offset();
-  var vector = [ mouseAbsPosX - playerAbsPos.left, mouseAbsPosY - playerAbsPos.top ];
-  var vectorDist = Math.sqrt(Math.pow(vector[0],2) + Math.pow(vector[1],2));
-  vector = [ vector[0]/ vectorDist, vector[1]/vectorDist];
-  var missile = new Missile({x: playerAbsPos.left, y:playerAbsPos.top, vector:vector});
-  console.log(missile);
+  var vector = normalizedVector(event.x, event.y, player.x, player.y );
+  var missile = new Missile({x: player.x, y: player.y, vector:vector});
   missile.draw();
   missileArr.push(missile);
-  console.log('missile fired');
-  console.log(event);
 }
 
 $('#player').bind('tbg:player', playerAction );
 
 function playerAction(){
-  console.log('player moves');
-  var offset = player.offset();
   switch (event.which) {
     case 37 || 65:
         // Key left.
-        move(offset, 0, -1);
+        player.move([-1, 0]);
         break;
     case 38 || 87:
         // Key up.
-        move(offset, -1, 0);
+        player.move([0, -1]);
         break;
     case 39 || 68:
         // Key right.
-        move(offset, 0, 1);
+        player.move([1, 0]);
         break;
     case 40 || 83:
         // Key down.
-        move(offset, 1, 0);
+        player.move([0, 1]);
         break;
     case 32:
         // spacebar == attack
         playerAttack();
         break;
   }
-  // console.log(event);
 }
-
-function move(offset, x, y){
-  player.offset({ top: offset.top + (x * moveScale), left: offset.left + (y * moveScale) });
-}
-
-// function init(){
-//   Enemy = new Character(characters.enemy);
-//   User.curHP = User.healthPoints;
-//   checkXP();
-//   $('#user-display').bind('tbg:user-attack', userTurn );
-//   $('#user-display').find('.stat-holder').html(statbar(User));
-//   $('#opponent-display').find('.stat-holder').html(statbar(Enemy));
-//   $('.log').html('');
-// }
-// function checkXP(){
-//   if(User.xp > (User.level*19)){
-//     levelUp();
-//   }
-// }
-// function levelUp(){
-//   User.damageLow += 1;
-//   User.damageHigh += 2;
-//   User.healthPoints += 10;
-//   User.level += 1;
-//   User.nextlevel = User.level * 19;
-//   alert('you have leveled up and gotten stronger!');
-// }
-//
-// function rollDamage(lo, hi){
-//   return _.random(lo, hi);
-// }
-// function dealDamage( Char, damage ){
-//   Char.curHP -= damage;
-// }
-// function checkWin(){
-//     if( User.curHP <= 0){
-//       alert( 'you lose and your character loses 10xp :(');
-//       User.xp -= 10;
-//       init();
-//       return true;
-//     }
-//     if( Enemy.curHP <= 0){
-//       alert( 'you win and gain ' + Enemy.xp + 'xp!');
-//       User.xp += Enemy.xp;
-//       init();
-//       return true;
-//     }
-//     return false;
-// }
-//
-//
-// function enemyTurn(event){
-//   $('#user-display').bind('tbg:user-attack', userTurn );
-//   var damage = Enemy.rollDamage();
-//   User.takeDamage(damage);
-//   $('#opponent-display').find('.log').append('Enemy Attacked Your For ' + damage + '<br>');
-//   $('#user-display').find('.stat-holder').html(statbar(User));
-//   if( !checkWin() ){
-//     $('#opponent-display').find('.alert').html('Enemy Attacked!');
-//     $('#user-display .alert').html('Click to Attack...');
-//   }
-// }
-//
-// function userTurn(event){
-//   $(this).unbind("tbg:user-attack");
-//   var damage = User.rollDamage();
-//   Enemy.takeDamage(damage);
-//   $(this).find('.log').append('You Attacked For ' + damage + '<br>');
-//   $('#opponent-display').find('.stat-holder').html(statbar(Enemy));
-//   $(this).find('.alert').html('You Attacked!');
-//   if( !checkWin() ){
-//     $('#opponent-display .alert').html('attacking you...');
-//     window.setTimeout( enemyTurn, 500 );
-//   }
-// }
-
-// init();

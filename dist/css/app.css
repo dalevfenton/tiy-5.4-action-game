@@ -55,12 +55,39 @@ img {
   background: rgba(0, 0, 0, 0.5);
   top: 50%;
   left: 50%;
-  transition: .1s; }
+  transition: .01s; }
 
 .missile {
   position: absolute;
   width: 5px;
   height: 5px;
-  background: red; }
+  background: red;
+  transition: .033s; }
+
+.target {
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  border-radius: 15px;
+  background: red;
+  border: 1px solid black; }
+  .target::before {
+    position: absolute;
+    content: '';
+    width: 20px;
+    height: 20px;
+    border-radius: 10px;
+    background: blue;
+    left: 4px;
+    top: 4px; }
+  .target::after {
+    position: absolute;
+    content: '';
+    width: 10px;
+    height: 10px;
+    border-radius: 5px;
+    background: white;
+    top: 9px;
+    left: 9px; }
 
 /*# sourceMappingURL=app.css.map */

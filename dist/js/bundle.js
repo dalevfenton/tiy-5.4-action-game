@@ -39,37 +39,92 @@ var missileArr = [];
 //the scripts folder
 //-----------------------------------------------------------------------------
 var statbar = require('../templates/statbar.handlebars');
-var moveScale = 10;
-var missileSpeed = 20;
-Handlebars.registerHelper('next-level', function( level ) {
-  return new Handlebars.SafeString( level * 19 );
-});
-var interval = window.setInterval(moveMissile, 100);
+var moveScale = 30;
+var missileSpeed = 50;
+var boardOffset = $('#game-field').offset();
+var boardWidth = $('#game-field').outerWidth();
+var boardHeight = $('#game-field').outerHeight();
+var boardTop = boardOffset.top;
+var boardLeft = boardOffset.left;
+var boardBottom = boardTop + boardHeight;
+var boardRight = boardLeft + boardWidth;
+console.log($('#game-field'));
+console.log(boardTop, boardBottom, boardLeft, boardRight);
+var windowPadding = 50;
+function Target(){
+  this.id = id;
+  id += 1;
+  this.x = _.random(boardLeft+windowPadding, boardRight-windowPadding);
+  this.y = _.random(boardTop+windowPadding, boardBottom-windowPadding);
+  this.draw = function(){
+      $('#game-field').append('<div id="target-' + this.id + '" class="target">');
+      $("#target-" + this.id).offset({top: this.y, left: this.x});
+  };
+}
+var interval = window.setInterval(moveMissile, 33);
+function pyTheorum(){
+
+}
+var targetArr = [];
+for(var i = 0; i < 10; i++){
+  var target = new Target();
+  target.draw();
+  targetArr.push(target);
+}
+console.log(targetArr);
+function inWindow( sprite ){
+  if( boardLeft < sprite.x && sprite.x < boardRight && boardTop < sprite.y && sprite.y < boardBottom ){
+    return true;
+  }else{
+    return false;
+  }
+}
+function collide( sprite ){
+  targetArr.forEach(function(target, index){
+    var dist = Math.sqrt( Math.pow((sprite.x - target.x), 2) + Math.pow((sprite.y - target.y), 2));
+    if(dist < 30){
+      targetArr.splice( index, 1);
+      console.log('removed target #' + target.id);
+      $('#target-' + target.id).remove();
+      return true;
+    }else{
+      return false;
+    }
+  });
+}
 function moveMissile(){
   console.log('called move missile');
   console.log(missileArr);
-  missileArr.forEach(function(item){
+  missileArr.forEach(function(item, index){
     item.move();
-    item.draw();
+    if(collide(item) || !inWindow(item) ){
+      missileArr.splice( index, 1);
+      console.log('removed missile #' + item.id);
+      $('#missile-' + item.id).remove();
+    }
   });
 }
 var characters = require('./characters');
-function Missile(config, id){
-  this.ID = id;
+function Missile(config){
+  this.id = id;
+  id += 1;
   this.x = (config.x || 0);
   this.y = (config.y || 0);
   this.vector = (config.vector || [1,1]);
   this.move = function(){
+    console.log(this.vector);
+    console.log(this.x);
+    console.log(this.y);
     this.x += this.vector[0] * missileSpeed;
     this.y += this.vector[1] * missileSpeed;
-    $('#missile-'+this.id).offset({ top: this.x, left: this.y });
+    $('#missile-'+this.id).offset({ top: this.y, left: this.x });
   };
   this.draw = function(){
     $('#game-field').append('<div id="missile-' + this.id + '" class="missile">');
     $("#missile-" + this.id).offset({top: this.y, left: this.x});
   };
 }
-function Character(config, id){
+function Character(config){
   this.ID = id;
   this.damageLow = (config.low || _.random(1,6));
   this.damageHigh = (config.high || _.random(6,11));
@@ -88,9 +143,9 @@ function Character(config, id){
   id += 1;
 }
 
-var archer = new Character(characters.archer);
-var User = new Character(characters.user);
-var Enemy;
+// var archer = new Character(characters.archer);
+// var User = new Character(characters.user);
+// var Enemy;
 var player = $('#player');
 
 
@@ -110,13 +165,15 @@ function fireMissile(){
   var mouseAbsPosX = event.x;
   var mouseAbsPosY = event.y;
   var playerAbsPos = player.offset();
-  var vector = [mouseAbsPosX - playerAbsPos.left, mouseAbsPosY - playerAbsPos.top];
+  var vector = [ mouseAbsPosX - playerAbsPos.left, mouseAbsPosY - playerAbsPos.top ];
   var vectorDist = Math.sqrt(Math.pow(vector[0],2) + Math.pow(vector[1],2));
   vector = [ vector[0]/ vectorDist, vector[1]/vectorDist];
-  missileArr.push(new Missile({x: playerAbsPos.left, y:playerAbsPos.top, vector:vector}, id));
-  console.log(missileArr);
-  id += 1;
+  var missile = new Missile({x: playerAbsPos.left, y:playerAbsPos.top, vector:vector});
+  console.log(missile);
+  missile.draw();
+  missileArr.push(missile);
   console.log('missile fired');
+  console.log(event);
 }
 
 $('#player').bind('tbg:player', playerAction );

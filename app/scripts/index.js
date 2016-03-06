@@ -38,9 +38,14 @@ var boardLeft = boardOffset.left;
 var boardBottom = boardTop + boardHeight;
 var boardRight = boardLeft + boardWidth;
 var screenRefresh = 33;
-
+var player = new Player({selector: '#player'});
 $('#test-obj-top').offset({top: boardTop, left: boardRight});
 $('#test-obj-bottom').offset({top: boardBottom, left: boardRight});
+console.log(boardTop);
+console.log(boardLeft);
+console.log($('#game-field'));
+console.log(boardOffset);
+console.log(player);
 
 function Missile(config){
   this.id = id;
@@ -57,6 +62,9 @@ function Missile(config){
   this.draw = function(){
     $('#game-field').append('<div id="missile-' + this.id + '" class="missile">');
     $("#missile-" + this.id).offset({top: this.y, left: this.x});
+  };
+  this.remove = function(){
+    $('#missile-' + this.id).remove();
   };
 }
 
@@ -80,23 +88,24 @@ function Target(config){
   };
 }
 
-function calcLevel(level){
-  return (25 * level * ( 1 + level ));
-}
-var player = {
-  x: $('#player').offset().left,
-  y: $('#player').offset().top,
-  selector: '#player',
-  speed: 30,
-  xp: 0,
-  level: 1,
-  nextLevel: calcLevel(1),
-  score: 0,
-  timeSinceKill: 0,
-  comboKills: 0,
-  move: function(vector){
-    this.x += vector[0] * this.speed;
-    this.y += vector[1] * this.speed;
+function Player( config ){
+  this.selector = (config.selector || '#player');
+  this.x = $(this.selector).offset().left;
+  this.y = $(this.selector).offset().top;
+  this.vector = [0,0];
+  this.speed = ( config.speed || 5);
+  this.xp = ( config.xp || 0);
+  this.level = ( config.level || 1);
+  this.calcLevel = function(){
+    return (25 * this.level * ( 1 + this.level ));
+  };
+  this.nextLevel = this.calcLevel( this.level );
+  this.score = ( config.score || 0 );
+  this.timeSinceKill = 0;
+  this.comboKills = 0;
+  this.move = function(vector){
+    this.x += this.vector[0] * this.speed;
+    this.y += this.vector[1] * this.speed;
     if(this.x < boardLeft){
       this.x = boardLeft;
     }
@@ -110,43 +119,95 @@ var player = {
       this.y = boardBottom;
     }
     $(this.selector).offset({top: this.y, left: this.x});
-  },
-  killedTarget: function(target){
+  };
+  this.killedTarget = function(target){
     this.xp += target.xp;
     this.comboKills += 1;
     this.score += (target.score * this.comboKills);
     this.timeSinceKill = 0;
     this.checkLevel();
-  },
-  checkCombo: function(){
+  };
+  this.checkCombo =  function(){
     if(this.timeSinceKill > 5000 ){
       this.comboKills = 0;
     }
-  },
-  addTime: function(){
+  };
+  this.addTime =  function(){
     this.timeSinceKill += screenRefresh;
-  },
-  checkLevel: function(){
+  };
+  this.checkLevel =  function(){
     if(this.xp > this.nextLevel){
       this.levelUp();
       console.log(this.level);
       this.nextLevel = calcLevel(this.level);
     }
-  },
-  levelUp: function(){
+  };
+  this.levelUp = function(){
     this.speed += 1;
     this.level += 1;
-  }
-};
+  };
+}
+// function calcLevel(level){
+//   return (25 * level * ( 1 + level ));
+// }
+// var player = {
+//   x: $('#player').offset().left,
+//   y: $('#player').offset().top,
+//   selector: '#player',
+//   speed: 30,
+//   xp: 0,
+//   level: 1,
+//   nextLevel: calcLevel(1),
+//   score: 0,
+//   timeSinceKill: 0,
+//   comboKills: 0,
+//   move: function(){
+//     this.x += this.vector[0] * this.speed;
+//     this.y += this.vector[1] * this.speed;
+//     if(this.x < boardLeft){
+//       this.x = boardLeft;
+//     }
+//     if(this.x > boardRight){
+//       this.x = boardRight;
+//     }
+//     if(this.y < boardTop){
+//       this.y = boardTop;
+//     }
+//     if(this.y > boardBottom){
+//       this.y = boardBottom;
+//     }
+//     $(this.selector).offset({top: this.y, left: this.x});
+//   },
+//   killedTarget: function(target){
+//     this.xp += target.xp;
+//     this.comboKills += 1;
+//     this.score += (target.score * this.comboKills);
+//     this.timeSinceKill = 0;
+//     this.checkLevel();
+//   },
+//   checkCombo: function(){
+//     if(this.timeSinceKill > 5000 ){
+//       this.comboKills = 0;
+//     }
+//   },
+//   addTime: function(){
+//     this.timeSinceKill += screenRefresh;
+//   },
+//   checkLevel: function(){
+//     if(this.xp > this.nextLevel){
+//       this.levelUp();
+//       console.log(this.level);
+//       this.nextLevel = calcLevel(this.level);
+//     }
+//   },
+//   levelUp: function(){
+//     this.speed += 1;
+//     this.level += 1;
+//   }
+// };
 // player.offset({ top: offset.top + (x * moveScale), left: offset.left + (y * moveScale) });
 
-$(window).on('keydown', function(){
-  $('#player').trigger('tbg:player');
-});
-$(window).on('click', function(){
-  $(window).trigger('tbg:player-attack');
-  // console.log(event);
-});
+
 
 //this setInterval function updates our game window at approx 30fps
 var interval = window.setInterval(refreshWindow, screenRefresh);
@@ -161,26 +222,32 @@ function refreshWindow(){
   }
   player.addTime();
   player.checkCombo();
+  player.move();
+  // player.move();
   $('#user-display').find('.stat-holder').html(statbar(player));
 }
+
 //pythagorean theorum function to calculate distance between two objects
 //(mainly used to try and detect collisions)
 function pyTheorum(x1, y1, x2, y2){
  return Math.abs(Math.sqrt( Math.pow((x1 - x2), 2) + Math.pow((y1 - y2), 2)));
 }
+//returns a scale normalized vector to use in translation of objects onscreen
 function normalizedVector(x1, y1, x2, y2){
   var rawVect = [ x1-x2, y1-y2];
   var dist = pyTheorum(x1, y1, x2, y2);
   return [ rawVect[0] / dist, rawVect[1] / dist ];
 }
-
+//set up our initial group of targets
 var targetArr = [];
 for(var i = 0; i < 10; i++){
   var target = new Target();
   target.draw();
   targetArr.push(target);
 }
-console.log(targetArr);
+// console.log(targetArr);
+
+//function used to detect if our missiles or other objects have gone offscreen
 function inWindow( sprite ){
   if( boardLeft < sprite.x && sprite.x < boardRight && boardTop < sprite.y && sprite.y < boardBottom ){
     return true;
@@ -188,6 +255,7 @@ function inWindow( sprite ){
     return false;
   }
 }
+//collision detection function that checks if any missile has hit a target
 function collide( sprite ){
   targetArr.forEach(function(target, index){
     var dist = Math.sqrt( Math.pow((sprite.x - target.x), 2) + Math.pow((sprite.y - target.y), 2));
@@ -195,12 +263,14 @@ function collide( sprite ){
       targetArr.splice( index, 1);
       $('#target-' + target.id).remove();
       player.killedTarget(target);
+      console.log('collision');
       return true;
     }else{
       return false;
     }
   });
 }
+
 function moveTargets(){
   targetArr.forEach(function(item, index){
     item.move();
@@ -215,15 +285,23 @@ function moveMissiles(){
   missileArr.forEach(function(item, index){
     item.move();
     if(collide(item) || !inWindow(item) ){
+      console.log('should remove missle');
       missileArr.splice( index, 1);
-      $('#missile-' + item.id).remove();
+      item.remove();
     }
   });
 }
 
 
 
+$(window).on('keydown keyup', function(){
+  $(player.selector).trigger('tbg:player-move');
+  console.log(event);
+});
 
+$(window).on('click', function(){
+  $(window).trigger('tbg:player-attack');
+});
 
 $(window).bind('tbg:player-attack', fireMissile );
 
@@ -237,29 +315,34 @@ function fireMissile(){
   missileArr.push(missile);
 }
 
-$('#player').bind('tbg:player', playerAction );
+$(player.selector).bind('tbg:player-move', playerVector );
 
-function playerAction(){
+function playerVector(){
+  var movement;
+  if(event.type == 'keydown'){
+    movement = 1;
+  }else{
+    movement = 0;
+  }
   switch (event.which) {
-    case 37 || 65:
+    case (37 || 65):
         // Key left.
-        player.move([-1, 0]);
+        player.vector[0] = movement * -1;
         break;
-    case 38 || 87:
+    case (38 || 87):
         // Key up.
-        player.move([0, -1]);
+        player.vector[1] = movement * -1;
         break;
-    case 39 || 68:
+    case (39 || 68):
         // Key right.
-        player.move([1, 0]);
+        player.vector[0] = movement;
         break;
-    case 40 || 83:
+    case (40 || 83):
         // Key down.
-        player.move([0, 1]);
+        player.vector[1] = movement;
         break;
     case 32:
-        // spacebar == attack
-        playerAttack();
+        //spacebar selector
         break;
   }
 }

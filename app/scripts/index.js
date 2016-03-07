@@ -18,7 +18,7 @@ var id = 1;
 //-----------------------------------------------------------------------------
 var statbar = require('../templates/statbar.handlebars');
 var characters = require('./characters');
-}
+
 function Character(config, id){
   this.ID = id;
   this.damageLow = (config.low || _.random(1,6));
@@ -46,7 +46,7 @@ var Enemy;
 //   $('#player').trigger('tbg:player');
 // });
 $(window).on('click', function(){
-  $(window).trigger('tbg:player-attack');
+  $(window).trigger('tbg:user-attack');
   // console.log(event);
 });
 

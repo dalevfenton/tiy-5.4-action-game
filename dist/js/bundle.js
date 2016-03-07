@@ -71,7 +71,7 @@ var Enemy;
 //   $('#player').trigger('tbg:player');
 // });
 $(window).on('click', function(){
-  $(window).trigger('tbg:user-attack');
+  $('#user-display').trigger('tbg:user-attack');
 });
 
 
@@ -127,7 +127,7 @@ function checkWin(){
 
 function enemyTurn(event){
   $('#user-display').bind('tbg:user-attack', userTurn );
-  console.log(event);
+  console.log('inside enemyTurn');
   var damage = Enemy.rollDamage();
   User.takeDamage(damage);
   $('#opponent-display').find('.log').append('Enemy Attacked Your For ' + damage + '<br>');
@@ -140,7 +140,7 @@ function enemyTurn(event){
 
 function userTurn(event){
   $(this).unbind("tbg:user-attack");
-  console.log(event);
+  console.log('inside UserTurn');
   var damage = User.rollDamage();
   Enemy.takeDamage(damage);
   $(this).find('.log').append('You Attacked For ' + damage + '<br>');

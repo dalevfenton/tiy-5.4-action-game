@@ -11,41 +11,47 @@
 //save game / high scores
 //multiplayer
 
+
+//--------------------------3rd Party Libraries---------------------------------
 var $ = require('jquery');
 window._ = require('underscore');
 var Handlebars = require('handlebars');
 var statbar = require('../templates/statbar.handlebars');
+var gameinfo = require('../templates/gameinfo.handlebars');
 
-
-
+//----------------------------GLOBAL VARIABLES ---------------------------------
 //id is used to set unique identifiers on each object created so that we
 //can set a unique id on the HTML elements and select them to move or remove
 var id = 1;
-
+//duration is used to track overall amount of time and spawn enemies
+var duration = 0;
 //missileArr holds a list of Missile objects and iterates over them on each
 //window refresh to move them and detect collisions
 var missileArr = [];
-//windowpadding is used to make sure targets do not spawn too close to the edge
-//of the window
+//targetArr holds our list of enemies and iterates over them on each
+//window refresh as well
+var targetArr = [];
+//interval is the ID passed when we call setInterval so that we can clearInterval
+//if the game is paused
+var interval;
+//windowpadding and playerpadding is used to make sure targets do not
+//spawn too close to the edge of the window or the player
 var windowPadding = 50;
-
-//setup bounds of the game field so we can tell if missiles or characters have
-//gone offscreen and remove them from our tracking
-var boardOffset = $('#game-field').offset();
-var boardWidth = $('#game-field').outerWidth();
-var boardHeight = $('#game-field').outerHeight();
-var boardTop = boardOffset.top;
-var boardLeft = boardOffset.left;
-var boardBottom = boardTop + boardHeight;
-var boardRight = boardLeft + boardWidth;
+var playerPadding = 50;
+//variables used to set game board bounds declared into global scope
+var boardOffset, boardWidth, boardHeight, boardTop, boardLeft, boardBottom, boardRight;
+//screen refresh is the miliseconds between calls of our screenRefresh function
+//33 comes out to around 30fps
 var screenRefresh = 33;
+//player is instantiated with the player constructor but we want it available for
+//all our functions (at this the way it's implemented)
 var player;
-// console.log(boardTop);
-// console.log(boardLeft);
-// console.log($('#game-field'));
-// console.log(boardOffset);
-// console.log( $('.container').offset());
 
+
+//------------------------------------------------------------------------------
+//                               CONSTRUCTORS
+//------------------------------------------------------------------------------
+//Missile is the constructor for elements fired by the user at Targets
 function Missile(config){
   this.id = id;
   id += 1;
@@ -62,16 +68,18 @@ function Missile(config){
     $('#game-field').append('<div id="missile-' + this.id + '" class="missile">');
     $("#missile-" + this.id).offset({top: this.y, left: this.x});
   };
-  this.remove = function(){
+  this.remove = function( index ){
+    missileArr.splice( index, 1);
     $('#missile-' + this.id).remove();
   };
 }
-
+//Target is the constructor for enemy elements that are trying to kill the player
 function Target(config){
   this.id = id;
   this.speed = 1.5;
   this.xp = 10;
   this.score = 10;
+  this.size = 30;
   id += 1;
   this.x = _.random(boardLeft+windowPadding, boardRight-windowPadding);
   this.y = _.random(boardTop+windowPadding, boardBottom-windowPadding);
@@ -85,8 +93,13 @@ function Target(config){
     this.y += vector[1] * this.speed;
     $("#target-" + this.id).offset({top: this.y, left: this.x});
   };
+  this.remove = function(index){
+    console.log('target remove triggered');
+    targetArr.splice( index, 1);
+    $('#target-' + this.id).remove();
+  };
 }
-
+//Player is constructed and has methods to handle most player actions
 function Player( config ){
   this.selector = (config.selector || '#player');
   this.x = $(this.selector).offset().left;
@@ -95,6 +108,7 @@ function Player( config ){
   this.speed = ( config.speed || 5);
   this.xp = ( config.xp || 0);
   this.level = ( config.level || 1);
+  this.size = 20;
   this.calcLevel = function( ){
     return (25 * this.level * ( 1 + this.level ));
   };
@@ -108,14 +122,14 @@ function Player( config ){
     if(this.x < boardLeft){
       this.x = boardLeft;
     }
-    if(this.x > boardRight - 20 ){
-      this.x =  boardRight - 20;
+    if(this.x > boardRight - this.size ){
+      this.x =  boardRight - this.size;
     }
     if(this.y < boardTop){
       this.y = boardTop;
     }
-    if(this.y > boardBottom - 20){
-      this.y = boardBottom - 20;
+    if(this.y > boardBottom - this.size){
+      this.y = boardBottom - this.size;
     }
     $(this.selector).offset({top: this.y, left: this.x});
   };
@@ -146,24 +160,92 @@ function Player( config ){
   };
 }
 
-//this setInterval function updates our game window at approx 30fps
-var interval;
 
+//------------------------------------------------------------------------------
+//                   APPLICATION FLOW AND CONTROLLER FUNCTIONS
+//------------------------------------------------------------------------------
+
+
+//-------------------------------INITIALIZATION---------------------------------
+//game initialization function that is called when user clicks the start game button
+//sets many of our globals and event listeners, then starts a setInterval that
+//runs the game loop
+function initializeGame(){
+  //------------------------SETUP DATA OBJECTS ---------------------------------
+  player = new Player({selector: '#player'});
+  targetArr = [];
+  missileArr = [];
+  //-------------------NAMESPACED EVENT TRIGGERS -------------------------------
+  $(window).on('keydown keyup', function(){
+    $(player.selector).trigger('tbg:player-move');
+  });
+  $(window).on('click', function(){
+    $(window).trigger('tbg:player-attack');
+  });
+  boardOffset = $('#game-field').offset();
+  boardWidth = $('#game-field').outerWidth();
+  boardHeight = $('#game-field').outerHeight();
+  boardTop = boardOffset.top;
+  boardLeft = boardOffset.left;
+  boardBottom = boardTop + boardHeight;
+  boardRight = boardLeft + boardWidth;
+  $(window).bind('tbg:player-attack', fireMissile );
+  $(player.selector).bind('tbg:player-move', playerVector );
+  loadEnemies();
+  interval = window.setInterval(refreshWindow, screenRefresh);
+}
+//-------------------------------REFRESH WINDOW---------------------------------
+//this is the callback used by setInterval to update our data and redraw the
+//display at approx 30fps
 function refreshWindow(){
+  loadEnemies();
   moveTargets();
   moveMissiles();
-  while(targetArr.length < 10){
-    var target = new Target();
-    target.draw();
-    targetArr.push(target);
-  }
   player.addTime();
   player.checkCombo();
   player.move();
   // player.move();
   $('#user-display').find('.stat-holder').html(statbar(player));
 }
+//-------------------------------LOAD ENEMIES-----------------------------------
+function loadEnemies(){
+  duration += screenRefresh;
+  //approximately once every 2 seconds and with less than 15 targets on screen
+  //then add a new target object and push onto the targetArr
+  if(duration % (screenRefresh * 50) === 0 && targetArr.length < 15 ){
+      var target = new Target();
+      target.draw();
+      targetArr.push(target);
+  }
+}
 
+//-------------------------------MOVE ENEMIES-----------------------------------
+//move our targets and check if any of them have gotten our player, if so
+//end the game
+function moveTargets(){
+  targetArr.forEach(function(item, index){
+    item.move();
+    if( collidePlayer(item, player) ){
+      //trigger game over
+      clearInterval(interval);
+      //drawinfo should probably take an argument to display context screen
+      drawInfo();
+    }
+  });
+}
+//------------------------------MOVE MISSILES-----------------------------------
+function moveMissiles(){
+  missileArr.forEach(function(item, index){
+    item.move();
+    if(collideTarget(item, targetArr) || !inWindow(item) ){
+      item.remove(index);
+
+    }
+  });
+}
+//------------------------------------------------------------------------------
+//                      UTILITY AND HELPER FUNCTIONS
+//------------------------------------------------------------------------------
 //pythagorean theorum function to calculate distance between two objects
 //(mainly used to try and detect collisions)
 function pyTheorum(x1, y1, x2, y2){
@@ -175,10 +257,6 @@ function normalizedVector(x1, y1, x2, y2){
   var dist = pyTheorum(x1, y1, x2, y2);
   return [ rawVect[0] / dist, rawVect[1] / dist ];
 }
-//set up our initial group of targets
-var targetArr = [];
-// console.log(targetArr);
-
 //function used to detect if our missiles or other objects have gone offscreen
 function inWindow( sprite ){
   if( boardLeft < sprite.x && sprite.x < boardRight && boardTop < sprite.y && sprite.y < boardBottom ){
@@ -187,13 +265,12 @@ function inWindow( sprite ){
     return false;
   }
 }
-//collision detection function that checks if any missile has hit a target
-function collide( sprite ){
-  targetArr.forEach(function(target, index){
-    var dist = Math.sqrt( Math.pow((sprite.x - target.x), 2) + Math.pow((sprite.y - target.y), 2));
-    if(dist < 30){
-      targetArr.splice( index, 1);
-      $('#target-' + target.id).remove();
+//collision detection function that checks if the attackObj has hit the hitObj
+function collideTarget( attackObj, targetObjs ){
+  targetObjs.forEach(function(target, index){
+    var dist = pyTheorum( target.x, target.y, attackObj.x, attackObj.y);
+    if(dist < target.size){
+      target.remove(index);
       player.killedTarget(target);
       return true;
     }else{
@@ -202,76 +279,18 @@ function collide( sprite ){
   });
 }
 
-function moveTargets(){
-  targetArr.forEach(function(item, index){
-    item.move();
-    // if(collide(item) || !inWindow(item) ){
-    //   targetArr.splice( index, 1);
-    //   console.log('removed target #' + item.id);
-    //   $('#target-' + item.id).remove();
-    // }
-  });
-}
-function moveMissiles(){
-  missileArr.forEach(function(item, index){
-    item.move();
-    if(collide(item) || !inWindow(item) ){
-      missileArr.splice( index, 1);
-      item.remove();
-    }
-  });
-}
-
-function initializeGame(){
-  player = new Player({selector: '#player'});
-  $('#user-display').find('.stat-holder').html(statbar(player));
-  boardOffset = $('#game-field').offset();
-  boardWidth = $('#game-field').outerWidth();
-  boardHeight = $('#game-field').outerHeight();
-  boardTop = boardOffset.top;
-  boardLeft = boardOffset.left;
-  boardBottom = boardTop + boardHeight;
-  boardRight = boardLeft + boardWidth;
-  $(window).on('keydown keyup', function(){
-    $(player.selector).trigger('tbg:player-move');
-  });
-  $(player.selector).bind('tbg:player-move', playerVector );
-  for(var i = 0; i < 10; i++){
-    var target = new Target();
-    target.draw();
-    targetArr.push(target);
+//detect if our player has been hit, if so end the game
+function collidePlayer( item, player ){
+  var dist = pyTheorum(item.x, item.y, player.x, player.y);
+  if(dist < player.size){
+    return true;
+  }else{
+    return false;
   }
-  interval = window.setInterval(refreshWindow, screenRefresh);
 }
 
-
-$(window).on('click', function(){
-  $(window).trigger('tbg:player-attack');
-});
-$(window).bind('tbg:player-attack', fireMissile );
-
-$('#start-btn').click(function(event){
-  //initialize a game
-  initializeGame();
-  closeWindow();
-});
-$('#how-to-play').click(function(event){
-  //run modal template to display game info
-});
-$('#load-a-game').click(function(event){
-  //run ajax request to look for saved games
-});
-$('#unpause').click(function(event){
-  closeWindow();
-  interval = window.setInterval(refreshWindow, screenRefresh);
-});
-$('#save-a-game').click(function(event){
-  //compile all our objects and send to server with game id
-  //show form to get name and set hash based on some unique value
-});
-function closeWindow(){
-  $('#game-info').removeClass('show-info');
-}
+//called by mouse click handler and creates a new missile and adds it to our
+//missile array
 function fireMissile(){
   event.preventDefault();
   var mouseAbsPosX = event.x;
@@ -282,7 +301,7 @@ function fireMissile(){
   missileArr.push(missile);
 }
 
-
+//called by keyboard event handler and sets player motion as well as pauses game
 function playerVector(){
   var movement;
   if(event.type == 'keydown'){
@@ -323,7 +342,52 @@ function playerVector(){
   }
 }
 
-},{"../templates/statbar.handlebars":2,"handlebars":33,"jquery":46,"underscore":49}],2:[function(require,module,exports){
+//------------------------------------------------------------------------------
+//                         UI ELEMENT MANAGEMENT
+//------------------------------------------------------------------------------
+function drawInfo(){
+  $('#game-field').html('<div id="player"></div>');
+  $('#game-field').append(gameinfo({}));
+  $('#user-display').find('.stat-holder').html(statbar(player));
+  $('#game-info').addClass('show-info');
+  setInfoHandlers();
+}
+
+function setInfoHandlers(){
+  $('#start-btn').click(function(event){
+    //initialize a game
+    initializeGame();
+    closeWindow();
+  });
+  $('#how-to-play').click(function(event){
+    //run modal template to display game info
+  });
+  $('#load-a-game').click(function(event){
+    //run ajax request to look for saved games
+  });
+  $('#unpause').click(function(event){
+    closeWindow();
+    interval = window.setInterval(refreshWindow, screenRefresh);
+  });
+  $('#save-a-game').click(function(event){
+    //compile all our objects and send to server with game id
+    //show form to get name and set hash based on some unique value
+  });
+}
+//closes the game-info modal so we can start the game
+function closeWindow(){
+  $('#game-info').removeClass('show-info');
+}
+
+//draw info on initial screen
+drawInfo();
+
+},{"../templates/gameinfo.handlebars":2,"../templates/statbar.handlebars":3,"handlebars":34,"jquery":47,"underscore":50}],2:[function(require,module,exports){
+"use strict";
+var templater = require("handlebars/runtime")["default"].template;module.exports = templater({"compiler":[7,">= 4.0.0"],"main":function(container,depth0,helpers,partials,data) {
+    return "<!DOCTYPE html>\n<div id=\"game-info\" class=\"show-info\">\n  <div id=\"start-btn\" class=\"button\">Start</div>\n  <!-- <div id=\"how-to-play\" class=\"button\">How To Play</div>\n  <div id=\"save-a-game\" class=\"button\">Save Game</div>\n  <div id=\"load-a-game\" class=\"button\">Load A Game</div> -->\n  <div id=\"unpause\" class=\"button\">Close Window</div>\n</div>\n";
+},"useData":true});
+},{"handlebars/runtime":46}],3:[function(require,module,exports){
 "use strict";
 var templater = require("handlebars/runtime")["default"].template;module.exports = templater({"1":function(container,depth0,helpers,partials,data) {
     var alias1=container.lambda, alias2=container.escapeExpression;
@@ -371,7 +435,7 @@ var templater = require("handlebars/runtime")["default"].template;module.exports
     + ((stack1 = helpers["if"].call(alias1,(depth0 != null ? depth0.comboKills : depth0),{"name":"if","hash":{},"fn":container.program(15, data, 0),"inverse":container.program(7, data, 0),"data":data})) != null ? stack1 : "")
     + "</span>\n</div>\n";
 },"useData":true});
-},{"handlebars/runtime":45}],3:[function(require,module,exports){
+},{"handlebars/runtime":46}],4:[function(require,module,exports){
 (function (process,__filename){
 /** vim: et:ts=4:sw=4:sts=4
  * @license amdefine 1.0.0 Copyright (c) 2011-2015, The Dojo Foundation All Rights Reserved.
@@ -676,7 +740,7 @@ function amdefine(module, requireFn) {
 module.exports = amdefine;
 
 }).call(this,require('_process'),"/node_modules/amdefine/amdefine.js")
-},{"_process":48,"path":47}],4:[function(require,module,exports){
+},{"_process":49,"path":48}],5:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -743,7 +807,7 @@ exports['default'] = inst;
 module.exports = exports['default'];
 
 
-},{"./handlebars.runtime":5,"./handlebars/compiler/ast":7,"./handlebars/compiler/base":8,"./handlebars/compiler/compiler":10,"./handlebars/compiler/javascript-compiler":12,"./handlebars/compiler/visitor":15,"./handlebars/no-conflict":29}],5:[function(require,module,exports){
+},{"./handlebars.runtime":6,"./handlebars/compiler/ast":8,"./handlebars/compiler/base":9,"./handlebars/compiler/compiler":11,"./handlebars/compiler/javascript-compiler":13,"./handlebars/compiler/visitor":16,"./handlebars/no-conflict":30}],6:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -811,7 +875,7 @@ exports['default'] = inst;
 module.exports = exports['default'];
 
 
-},{"./handlebars/base":6,"./handlebars/exception":19,"./handlebars/no-conflict":29,"./handlebars/runtime":30,"./handlebars/safe-string":31,"./handlebars/utils":32}],6:[function(require,module,exports){
+},{"./handlebars/base":7,"./handlebars/exception":20,"./handlebars/no-conflict":30,"./handlebars/runtime":31,"./handlebars/safe-string":32,"./handlebars/utils":33}],7:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -917,7 +981,7 @@ exports.createFrame = _utils.createFrame;
 exports.logger = _logger2['default'];
 
 
-},{"./decorators":17,"./exception":19,"./helpers":20,"./logger":28,"./utils":32}],7:[function(require,module,exports){
+},{"./decorators":18,"./exception":20,"./helpers":21,"./logger":29,"./utils":33}],8:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -950,7 +1014,7 @@ exports['default'] = AST;
 module.exports = exports['default'];
 
 
-},{}],8:[function(require,module,exports){
+},{}],9:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -1000,7 +1064,7 @@ function parse(input, options) {
 }
 
 
-},{"../utils":32,"./helpers":11,"./parser":13,"./whitespace-control":16}],9:[function(require,module,exports){
+},{"../utils":33,"./helpers":12,"./parser":14,"./whitespace-control":17}],10:[function(require,module,exports){
 /* global define */
 'use strict';
 
@@ -1168,7 +1232,7 @@ exports['default'] = CodeGen;
 module.exports = exports['default'];
 
 
-},{"../utils":32,"source-map":34}],10:[function(require,module,exports){
+},{"../utils":33,"source-map":35}],11:[function(require,module,exports){
 /* eslint-disable new-cap */
 
 'use strict';
@@ -1742,7 +1806,7 @@ function transformLiteralToPath(sexpr) {
 }
 
 
-},{"../exception":19,"../utils":32,"./ast":7}],11:[function(require,module,exports){
+},{"../exception":20,"../utils":33,"./ast":8}],12:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -1974,7 +2038,7 @@ function preparePartialBlock(open, program, close, locInfo) {
 }
 
 
-},{"../exception":19}],12:[function(require,module,exports){
+},{"../exception":20}],13:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -3102,7 +3166,7 @@ exports['default'] = JavaScriptCompiler;
 module.exports = exports['default'];
 
 
-},{"../base":6,"../exception":19,"../utils":32,"./code-gen":9}],13:[function(require,module,exports){
+},{"../base":7,"../exception":20,"../utils":33,"./code-gen":10}],14:[function(require,module,exports){
 /* istanbul ignore next */
 /* Jison generated parser */
 "use strict";
@@ -3842,7 +3906,7 @@ var handlebars = (function () {
 exports['default'] = handlebars;
 
 
-},{}],14:[function(require,module,exports){
+},{}],15:[function(require,module,exports){
 /* eslint-disable new-cap */
 'use strict';
 
@@ -4030,7 +4094,7 @@ PrintVisitor.prototype.HashPair = function (pair) {
 /* eslint-enable new-cap */
 
 
-},{"./visitor":15}],15:[function(require,module,exports){
+},{"./visitor":16}],16:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -4172,7 +4236,7 @@ exports['default'] = Visitor;
 module.exports = exports['default'];
 
 
-},{"../exception":19}],16:[function(require,module,exports){
+},{"../exception":20}],17:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -4395,7 +4459,7 @@ exports['default'] = WhitespaceControl;
 module.exports = exports['default'];
 
 
-},{"./visitor":15}],17:[function(require,module,exports){
+},{"./visitor":16}],18:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -4413,7 +4477,7 @@ function registerDefaultDecorators(instance) {
 }
 
 
-},{"./decorators/inline":18}],18:[function(require,module,exports){
+},{"./decorators/inline":19}],19:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -4444,7 +4508,7 @@ exports['default'] = function (instance) {
 module.exports = exports['default'];
 
 
-},{"../utils":32}],19:[function(require,module,exports){
+},{"../utils":33}],20:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -4486,7 +4550,7 @@ exports['default'] = Exception;
 module.exports = exports['default'];
 
 
-},{}],20:[function(require,module,exports){
+},{}],21:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -4534,7 +4598,7 @@ function registerDefaultHelpers(instance) {
 }
 
 
-},{"./helpers/block-helper-missing":21,"./helpers/each":22,"./helpers/helper-missing":23,"./helpers/if":24,"./helpers/log":25,"./helpers/lookup":26,"./helpers/with":27}],21:[function(require,module,exports){
+},{"./helpers/block-helper-missing":22,"./helpers/each":23,"./helpers/helper-missing":24,"./helpers/if":25,"./helpers/log":26,"./helpers/lookup":27,"./helpers/with":28}],22:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -4575,7 +4639,7 @@ exports['default'] = function (instance) {
 module.exports = exports['default'];
 
 
-},{"../utils":32}],22:[function(require,module,exports){
+},{"../utils":33}],23:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -4671,7 +4735,7 @@ exports['default'] = function (instance) {
 module.exports = exports['default'];
 
 
-},{"../exception":19,"../utils":32}],23:[function(require,module,exports){
+},{"../exception":20,"../utils":33}],24:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -4698,7 +4762,7 @@ exports['default'] = function (instance) {
 module.exports = exports['default'];
 
 
-},{"../exception":19}],24:[function(require,module,exports){
+},{"../exception":20}],25:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -4729,7 +4793,7 @@ exports['default'] = function (instance) {
 module.exports = exports['default'];
 
 
-},{"../utils":32}],25:[function(require,module,exports){
+},{"../utils":33}],26:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -4757,7 +4821,7 @@ exports['default'] = function (instance) {
 module.exports = exports['default'];
 
 
-},{}],26:[function(require,module,exports){
+},{}],27:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -4771,7 +4835,7 @@ exports['default'] = function (instance) {
 module.exports = exports['default'];
 
 
-},{}],27:[function(require,module,exports){
+},{}],28:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -4806,7 +4870,7 @@ exports['default'] = function (instance) {
 module.exports = exports['default'];
 
 
-},{"../utils":32}],28:[function(require,module,exports){
+},{"../utils":33}],29:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -4855,7 +4919,7 @@ exports['default'] = logger;
 module.exports = exports['default'];
 
 
-},{"./utils":32}],29:[function(require,module,exports){
+},{"./utils":33}],30:[function(require,module,exports){
 (function (global){
 /* global window */
 'use strict';
@@ -4879,7 +4943,7 @@ module.exports = exports['default'];
 
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],30:[function(require,module,exports){
+},{}],31:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -5173,7 +5237,7 @@ function executeDecorators(fn, prog, container, depths, data, blockParams) {
 }
 
 
-},{"./base":6,"./exception":19,"./utils":32}],31:[function(require,module,exports){
+},{"./base":7,"./exception":20,"./utils":33}],32:[function(require,module,exports){
 // Build out our basic SafeString type
 'use strict';
 
@@ -5190,7 +5254,7 @@ exports['default'] = SafeString;
 module.exports = exports['default'];
 
 
-},{}],32:[function(require,module,exports){
+},{}],33:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -5316,7 +5380,7 @@ function appendContextPath(contextPath, id) {
 }
 
 
-},{}],33:[function(require,module,exports){
+},{}],34:[function(require,module,exports){
 // USAGE:
 // var handlebars = require('handlebars');
 /* eslint-disable no-var */
@@ -5343,7 +5407,7 @@ if (typeof require !== 'undefined' && require.extensions) {
   require.extensions['.hbs'] = extension;
 }
 
-},{"../dist/cjs/handlebars":4,"../dist/cjs/handlebars/compiler/printer":14,"fs":50}],34:[function(require,module,exports){
+},{"../dist/cjs/handlebars":5,"../dist/cjs/handlebars/compiler/printer":15,"fs":51}],35:[function(require,module,exports){
 /*
  * Copyright 2009-2011 Mozilla Foundation and contributors
  * Licensed under the New BSD license. See LICENSE.txt or:
@@ -5353,7 +5417,7 @@ exports.SourceMapGenerator = require('./source-map/source-map-generator').Source
 exports.SourceMapConsumer = require('./source-map/source-map-consumer').SourceMapConsumer;
 exports.SourceNode = require('./source-map/source-node').SourceNode;
 
-},{"./source-map/source-map-consumer":41,"./source-map/source-map-generator":42,"./source-map/source-node":43}],35:[function(require,module,exports){
+},{"./source-map/source-map-consumer":42,"./source-map/source-map-generator":43,"./source-map/source-node":44}],36:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -5462,7 +5526,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./util":44,"amdefine":3}],36:[function(require,module,exports){
+},{"./util":45,"amdefine":4}],37:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -5610,7 +5674,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./base64":37,"amdefine":3}],37:[function(require,module,exports){
+},{"./base64":38,"amdefine":4}],38:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -5685,7 +5749,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"amdefine":3}],38:[function(require,module,exports){
+},{"amdefine":4}],39:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -5804,7 +5868,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"amdefine":3}],39:[function(require,module,exports){
+},{"amdefine":4}],40:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2014 Mozilla Foundation and contributors
@@ -5892,7 +5956,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./util":44,"amdefine":3}],40:[function(require,module,exports){
+},{"./util":45,"amdefine":4}],41:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -6014,7 +6078,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"amdefine":3}],41:[function(require,module,exports){
+},{"amdefine":4}],42:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -7093,7 +7157,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./array-set":35,"./base64-vlq":36,"./binary-search":38,"./quick-sort":40,"./util":44,"amdefine":3}],42:[function(require,module,exports){
+},{"./array-set":36,"./base64-vlq":37,"./binary-search":39,"./quick-sort":41,"./util":45,"amdefine":4}],43:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -7494,7 +7558,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./array-set":35,"./base64-vlq":36,"./mapping-list":39,"./util":44,"amdefine":3}],43:[function(require,module,exports){
+},{"./array-set":36,"./base64-vlq":37,"./mapping-list":40,"./util":45,"amdefine":4}],44:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -7910,7 +7974,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./source-map-generator":42,"./util":44,"amdefine":3}],44:[function(require,module,exports){
+},{"./source-map-generator":43,"./util":45,"amdefine":4}],45:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -8282,12 +8346,12 @@ define(function (require, exports, module) {
 
 });
 
-},{"amdefine":3}],45:[function(require,module,exports){
+},{"amdefine":4}],46:[function(require,module,exports){
 // Create a simple path alias to allow browserify to resolve
 // the runtime on a supported path.
 module.exports = require('./dist/cjs/handlebars.runtime')['default'];
 
-},{"./dist/cjs/handlebars.runtime":5}],46:[function(require,module,exports){
+},{"./dist/cjs/handlebars.runtime":6}],47:[function(require,module,exports){
 /*!
  * jQuery JavaScript Library v2.2.1
  * http://jquery.com/
@@ -18120,7 +18184,7 @@ if ( !noGlobal ) {
 return jQuery;
 }));
 
-},{}],47:[function(require,module,exports){
+},{}],48:[function(require,module,exports){
 (function (process){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -18348,7 +18412,7 @@ var substr = 'ab'.substr(-1) === 'b'
 ;
 
 }).call(this,require('_process'))
-},{"_process":48}],48:[function(require,module,exports){
+},{"_process":49}],49:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -18441,7 +18505,7 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],49:[function(require,module,exports){
+},{}],50:[function(require,module,exports){
 //     Underscore.js 1.8.3
 //     http://underscorejs.org
 //     (c) 2009-2015 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
@@ -19991,6 +20055,6 @@ process.umask = function() { return 0; };
   }
 }.call(this));
 
-},{}],50:[function(require,module,exports){
+},{}],51:[function(require,module,exports){
 
 },{}]},{},[1]);

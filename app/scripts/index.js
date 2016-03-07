@@ -12,7 +12,6 @@
 var $ = require('jquery');
 window._ = require('underscore');
 var Handlebars = require('handlebars');
-
 var statbar = require('../templates/statbar.handlebars');
 
 
@@ -39,13 +38,11 @@ var boardBottom = boardTop + boardHeight;
 var boardRight = boardLeft + boardWidth;
 var screenRefresh = 33;
 var player;
-$('#test-obj-top').offset({top: boardTop, left: boardRight});
-$('#test-obj-bottom').offset({top: boardBottom, left: boardRight});
 // console.log(boardTop);
 // console.log(boardLeft);
 // console.log($('#game-field'));
 // console.log(boardOffset);
-// console.log(player);
+// console.log( $('.container').offset());
 
 function Missile(config){
   this.id = id;
@@ -96,10 +93,10 @@ function Player( config ){
   this.speed = ( config.speed || 5);
   this.xp = ( config.xp || 0);
   this.level = ( config.level || 1);
-  this.calcLevel = function(){
+  this.calcLevel = function( ){
     return (25 * this.level * ( 1 + this.level ));
   };
-  this.nextLevel = this.calcLevel( this.level );
+  this.nextLevel = this.calcLevel( );
   this.score = ( config.score || 0 );
   this.timeSinceKill = 0;
   this.comboKills = 0;
@@ -109,14 +106,14 @@ function Player( config ){
     if(this.x < boardLeft){
       this.x = boardLeft;
     }
-    if(this.x > boardRight){
-      this.x = boardRight;
+    if(this.x > boardRight - 20 ){
+      this.x =  boardRight - 20;
     }
     if(this.y < boardTop){
       this.y = boardTop;
     }
-    if(this.y > boardBottom){
-      this.y = boardBottom;
+    if(this.y > boardBottom - 20){
+      this.y = boardBottom - 20;
     }
     $(this.selector).offset({top: this.y, left: this.x});
   };
@@ -138,7 +135,7 @@ function Player( config ){
   this.checkLevel =  function(){
     if(this.xp > this.nextLevel){
       this.levelUp();
-      this.nextLevel = calcLevel(this.level);
+      this.nextLevel = this.calcLevel();
     }
   };
   this.levelUp = function(){
@@ -225,6 +222,14 @@ function moveMissiles(){
 
 function initializeGame(){
   player = new Player({selector: '#player'});
+  $('#user-display').find('.stat-holder').html(statbar(player));
+  boardOffset = $('#game-field').offset();
+  boardWidth = $('#game-field').outerWidth();
+  boardHeight = $('#game-field').outerHeight();
+  boardTop = boardOffset.top;
+  boardLeft = boardOffset.left;
+  boardBottom = boardTop + boardHeight;
+  boardRight = boardLeft + boardWidth;
   $(window).on('keydown keyup', function(){
     $(player.selector).trigger('tbg:player-move');
   });

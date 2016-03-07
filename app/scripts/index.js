@@ -38,7 +38,7 @@ var boardLeft = boardOffset.left;
 var boardBottom = boardTop + boardHeight;
 var boardRight = boardLeft + boardWidth;
 var screenRefresh = 33;
-var player = new Player({selector: '#player'});
+var player;
 $('#test-obj-top').offset({top: boardTop, left: boardRight});
 $('#test-obj-bottom').offset({top: boardBottom, left: boardRight});
 console.log(boardTop);
@@ -147,70 +147,9 @@ function Player( config ){
     this.level += 1;
   };
 }
-// function calcLevel(level){
-//   return (25 * level * ( 1 + level ));
-// }
-// var player = {
-//   x: $('#player').offset().left,
-//   y: $('#player').offset().top,
-//   selector: '#player',
-//   speed: 30,
-//   xp: 0,
-//   level: 1,
-//   nextLevel: calcLevel(1),
-//   score: 0,
-//   timeSinceKill: 0,
-//   comboKills: 0,
-//   move: function(){
-//     this.x += this.vector[0] * this.speed;
-//     this.y += this.vector[1] * this.speed;
-//     if(this.x < boardLeft){
-//       this.x = boardLeft;
-//     }
-//     if(this.x > boardRight){
-//       this.x = boardRight;
-//     }
-//     if(this.y < boardTop){
-//       this.y = boardTop;
-//     }
-//     if(this.y > boardBottom){
-//       this.y = boardBottom;
-//     }
-//     $(this.selector).offset({top: this.y, left: this.x});
-//   },
-//   killedTarget: function(target){
-//     this.xp += target.xp;
-//     this.comboKills += 1;
-//     this.score += (target.score * this.comboKills);
-//     this.timeSinceKill = 0;
-//     this.checkLevel();
-//   },
-//   checkCombo: function(){
-//     if(this.timeSinceKill > 5000 ){
-//       this.comboKills = 0;
-//     }
-//   },
-//   addTime: function(){
-//     this.timeSinceKill += screenRefresh;
-//   },
-//   checkLevel: function(){
-//     if(this.xp > this.nextLevel){
-//       this.levelUp();
-//       console.log(this.level);
-//       this.nextLevel = calcLevel(this.level);
-//     }
-//   },
-//   levelUp: function(){
-//     this.speed += 1;
-//     this.level += 1;
-//   }
-// };
-// player.offset({ top: offset.top + (x * moveScale), left: offset.left + (y * moveScale) });
-
-
 
 //this setInterval function updates our game window at approx 30fps
-var interval = window.setInterval(refreshWindow, screenRefresh);
+var interval;
 
 function refreshWindow(){
   moveTargets();
@@ -240,11 +179,6 @@ function normalizedVector(x1, y1, x2, y2){
 }
 //set up our initial group of targets
 var targetArr = [];
-for(var i = 0; i < 10; i++){
-  var target = new Target();
-  target.draw();
-  targetArr.push(target);
-}
 // console.log(targetArr);
 
 //function used to detect if our missiles or other objects have gone offscreen
@@ -292,19 +226,50 @@ function moveMissiles(){
   });
 }
 
+function initializeGame(){
+  player = new Player({selector: '#player'});
+  $(window).on('keydown keyup', function(){
+    $(player.selector).trigger('tbg:player-move');
+    console.log(event);
+  });
+  $(player.selector).bind('tbg:player-move', playerVector );
+  for(var i = 0; i < 10; i++){
+    var target = new Target();
+    target.draw();
+    targetArr.push(target);
+  }
+  interval = window.setInterval(refreshWindow, screenRefresh);
+}
 
-
-$(window).on('keydown keyup', function(){
-  $(player.selector).trigger('tbg:player-move');
-  console.log(event);
-});
 
 $(window).on('click', function(){
   $(window).trigger('tbg:player-attack');
 });
-
 $(window).bind('tbg:player-attack', fireMissile );
 
+$('#start-btn').click(function(event){
+  //initialize a game
+  console.log('start-btn clicked');
+  initializeGame();
+  closeWindow();
+});
+$('#how-to-play').click(function(event){
+  //run modal template to display game info
+});
+$('#load-a-game').click(function(event){
+  //run ajax request to look for saved games
+});
+$('#unpause').click(function(event){
+  closeWindow();
+  interval = window.setInterval(refreshWindow, screenRefresh);
+});
+$('#save-a-game').click(function(event){
+  //compile all our objects and send to server with game id
+  //show form to get name and set hash based on some unique value
+});
+function closeWindow(){
+  $('#game-info').removeClass('show-info');
+}
 function fireMissile(){
   event.preventDefault();
   var mouseAbsPosX = event.x;
@@ -315,7 +280,6 @@ function fireMissile(){
   missileArr.push(missile);
 }
 
-$(player.selector).bind('tbg:player-move', playerVector );
 
 function playerVector(){
   var movement;
@@ -344,5 +308,11 @@ function playerVector(){
     case 32:
         //spacebar selector
         break;
+    case 27:
+        //display pause
+        $('#game-info').addClass('show-info');
+        clearInterval(interval);
+        break;
+
   }
 }

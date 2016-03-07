@@ -64,6 +64,32 @@ img {
   background: red;
   transition: .033s; }
 
+#game-info {
+  position: absolute;
+  top: 50%;
+  bottom: 50%;
+  left: 50%;
+  right: 50%;
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid black;
+  border-radius: 5px;
+  z-index: 100;
+  transition: .25s ease-in-out;
+  display: none; }
+  #game-info.show-info {
+    top: 20%;
+    bottom: 20%;
+    left: 20%;
+    right: 20%;
+    display: block; }
+
+.button {
+  width: 70%;
+  margin: 25px 15%;
+  background: black;
+  color: white;
+  text-align: center; }
+
 .target {
   width: 30px;
   height: 30px;

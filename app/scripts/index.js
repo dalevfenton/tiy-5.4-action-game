@@ -2,10 +2,6 @@ var $ = require('jquery');
 window._ = require('underscore');
 var Handlebars = require('handlebars');
 
-var statbar = require('../templates/statbar.handlebars');
-
-
-
 //id is used to set unique identifiers on each object created so that we
 //can set a unique id on the HTML elements and select them to move or remove
 var id = 1;
@@ -47,7 +43,6 @@ var Enemy;
 // });
 $(window).on('click', function(){
   $(window).trigger('tbg:user-attack');
-  // console.log(event);
 });
 
 
@@ -103,6 +98,7 @@ function checkWin(){
 
 function enemyTurn(event){
   $('#user-display').bind('tbg:user-attack', userTurn );
+  console.log(event);
   var damage = Enemy.rollDamage();
   User.takeDamage(damage);
   $('#opponent-display').find('.log').append('Enemy Attacked Your For ' + damage + '<br>');
@@ -115,6 +111,7 @@ function enemyTurn(event){
 
 function userTurn(event){
   $(this).unbind("tbg:user-attack");
+  console.log(event);
   var damage = User.rollDamage();
   Enemy.takeDamage(damage);
   $(this).find('.log').append('You Attacked For ' + damage + '<br>');

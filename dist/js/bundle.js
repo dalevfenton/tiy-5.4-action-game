@@ -31,10 +31,6 @@ var $ = require('jquery');
 window._ = require('underscore');
 var Handlebars = require('handlebars');
 
-var statbar = require('../templates/statbar.handlebars');
-
-
-
 //id is used to set unique identifiers on each object created so that we
 //can set a unique id on the HTML elements and select them to move or remove
 var id = 1;
@@ -76,7 +72,6 @@ var Enemy;
 // });
 $(window).on('click', function(){
   $(window).trigger('tbg:user-attack');
-  // console.log(event);
 });
 
 
@@ -132,6 +127,7 @@ function checkWin(){
 
 function enemyTurn(event){
   $('#user-display').bind('tbg:user-attack', userTurn );
+  console.log(event);
   var damage = Enemy.rollDamage();
   User.takeDamage(damage);
   $('#opponent-display').find('.log').append('Enemy Attacked Your For ' + damage + '<br>');
@@ -144,6 +140,7 @@ function enemyTurn(event){
 
 function userTurn(event){
   $(this).unbind("tbg:user-attack");
+  console.log(event);
   var damage = User.rollDamage();
   Enemy.takeDamage(damage);
   $(this).find('.log').append('You Attacked For ' + damage + '<br>');
@@ -170,26 +167,6 @@ var templater = require("handlebars/runtime")["default"].template;module.exports
 },"3":function(container,depth0,helpers,partials,data) {
     var alias1=container.lambda, alias2=container.escapeExpression;
 
-  return "<div class=\"attack-holder holder\">\n  <span>Attack: </span><span class=\"attack\">"
-    + alias2(alias1((depth0 != null ? depth0.damageLow : depth0), depth0))
-    + " - "
-    + alias2(alias1((depth0 != null ? depth0.damageHigh : depth0), depth0))
-    + "</span>\n</div>\n";
-},"5":function(container,depth0,helpers,partials,data) {
-    return container.escapeExpression(container.lambda((depth0 != null ? depth0.level : depth0), depth0));
-},"7":function(container,depth0,helpers,partials,data) {
-    return "0";
-},"9":function(container,depth0,helpers,partials,data) {
-    return container.escapeExpression(container.lambda((depth0 != null ? depth0.xp : depth0), depth0));
-},"11":function(container,depth0,helpers,partials,data) {
-    return container.escapeExpression(container.lambda((depth0 != null ? depth0.nextLevel : depth0), depth0));
-},"13":function(container,depth0,helpers,partials,data) {
-    return container.escapeExpression(container.lambda((depth0 != null ? depth0.score : depth0), depth0));
-},"15":function(container,depth0,helpers,partials,data) {
-    return container.escapeExpression(container.lambda((depth0 != null ? depth0.comboKills : depth0), depth0));
-},"17":function(container,depth0,helpers,partials,data) {
-    var alias1=container.lambda, alias2=container.escapeExpression;
-
   return "<div class=\"xp-holder holder\">\n  <span>XP: </span><span class=\"xp\">"
     + alias2(alias1((depth0 != null ? depth0.xp : depth0), depth0))
     + "</span>\n</div>\n<div class=\"next-level-holder holder\">\n  <span>Next Level At: </span><span class=\"next\">"
@@ -198,32 +175,16 @@ var templater = require("handlebars/runtime")["default"].template;module.exports
 },"compiler":[7,">= 4.0.0"],"main":function(container,depth0,helpers,partials,data) {
     var stack1, alias1=depth0 != null ? depth0 : {}, alias2=container.lambda, alias3=container.escapeExpression;
 
-  return "<!DOCTYPE html>\n<<<<<<< HEAD\n"
+  return "<!DOCTYPE html>\n\n"
     + ((stack1 = helpers["if"].call(alias1,(depth0 != null ? depth0.curHP : depth0),{"name":"if","hash":{},"fn":container.program(1, data, 0),"inverse":container.noop,"data":data})) != null ? stack1 : "")
-    + ((stack1 = helpers["if"].call(alias1,(depth0 != null ? depth0.damageLow : depth0),{"name":"if","hash":{},"fn":container.program(3, data, 0),"inverse":container.noop,"data":data})) != null ? stack1 : "")
-    + "\n<div class=\"level-holder holder\">\n  <span>Level: </span><span class=\"level\">"
-    + ((stack1 = helpers["if"].call(alias1,(depth0 != null ? depth0.level : depth0),{"name":"if","hash":{},"fn":container.program(5, data, 0),"inverse":container.program(7, data, 0),"data":data})) != null ? stack1 : "")
-    + "</span>\n</div>\n\n<div class=\"xp-holder holder\">\n  <span>XP: </span><span class=\"xp\">"
-    + ((stack1 = helpers["if"].call(alias1,(depth0 != null ? depth0.xp : depth0),{"name":"if","hash":{},"fn":container.program(9, data, 0),"inverse":container.program(7, data, 0),"data":data})) != null ? stack1 : "")
-    + "</span>\n</div>\n\n\n<div class=\"next-level-holder holder\">\n  <span>Next Level At: </span><span class=\"next\">"
-    + ((stack1 = helpers["if"].call(alias1,(depth0 != null ? depth0.nextLevel : depth0),{"name":"if","hash":{},"fn":container.program(11, data, 0),"inverse":container.program(7, data, 0),"data":data})) != null ? stack1 : "")
-    + "</span>\n</div>\n\n\n<div class=\"score-holder holder\">\n  <span>Score: </span><span class=\"score\">"
-    + ((stack1 = helpers["if"].call(alias1,(depth0 != null ? depth0.score : depth0),{"name":"if","hash":{},"fn":container.program(13, data, 0),"inverse":container.program(7, data, 0),"data":data})) != null ? stack1 : "")
-    + "</span>\n</div>\n\n<div class=\"combo-holder holder\">\n  <span>Combo Bonus: </span><span class=\"combox\">x"
-    + ((stack1 = helpers["if"].call(alias1,(depth0 != null ? depth0.comboKills : depth0),{"name":"if","hash":{},"fn":container.program(15, data, 0),"inverse":container.program(7, data, 0),"data":data})) != null ? stack1 : "")
-    + "</span>\n</div>\n=======\n<div class=\"hp-holder holder\">\n  <span>HP: </span><span class=\"hp\">"
-    + alias3(alias2((depth0 != null ? depth0.curHP : depth0), depth0))
-    + " / "
-    + alias3(alias2((depth0 != null ? depth0.healthPoints : depth0), depth0))
-    + "</span>\n</div>\n<div class=\"attack-holder holder\">\n  <span>Attack: </span><span class=\"attack\">"
+    + "<div class=\"attack-holder holder\">\n  <span>Attack: </span><span class=\"attack\">"
     + alias3(alias2((depth0 != null ? depth0.damageLow : depth0), depth0))
     + " - "
     + alias3(alias2((depth0 != null ? depth0.damageHigh : depth0), depth0))
     + "</span>\n</div>\n<div class=\"level-holder holder\">\n  <span>Level: </span><span class=\"level\">"
     + alias3(alias2((depth0 != null ? depth0.level : depth0), depth0))
     + "</span>\n</div>\n"
-    + ((stack1 = helpers["if"].call(alias1,(depth0 != null ? depth0.reaction : depth0),{"name":"if","hash":{},"fn":container.program(17, data, 0),"inverse":container.noop,"data":data})) != null ? stack1 : "")
-    + ">>>>>>> 1826b12... working on adding character and shooting missiles\n";
+    + ((stack1 = helpers["if"].call(alias1,(depth0 != null ? depth0.reaction : depth0),{"name":"if","hash":{},"fn":container.program(3, data, 0),"inverse":container.noop,"data":data})) != null ? stack1 : "");
 },"useData":true});
 },{"handlebars/runtime":46}],4:[function(require,module,exports){
 (function (process,__filename){

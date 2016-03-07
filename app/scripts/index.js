@@ -41,11 +41,11 @@ var screenRefresh = 33;
 var player;
 $('#test-obj-top').offset({top: boardTop, left: boardRight});
 $('#test-obj-bottom').offset({top: boardBottom, left: boardRight});
-console.log(boardTop);
-console.log(boardLeft);
-console.log($('#game-field'));
-console.log(boardOffset);
-console.log(player);
+// console.log(boardTop);
+// console.log(boardLeft);
+// console.log($('#game-field'));
+// console.log(boardOffset);
+// console.log(player);
 
 function Missile(config){
   this.id = id;
@@ -70,7 +70,7 @@ function Missile(config){
 
 function Target(config){
   this.id = id;
-  this.speed = 1;
+  this.speed = 1.5;
   this.xp = 10;
   this.score = 10;
   id += 1;
@@ -138,12 +138,11 @@ function Player( config ){
   this.checkLevel =  function(){
     if(this.xp > this.nextLevel){
       this.levelUp();
-      console.log(this.level);
       this.nextLevel = calcLevel(this.level);
     }
   };
   this.levelUp = function(){
-    this.speed += 1;
+    // this.speed += 1;
     this.level += 1;
   };
 }
@@ -197,7 +196,6 @@ function collide( sprite ){
       targetArr.splice( index, 1);
       $('#target-' + target.id).remove();
       player.killedTarget(target);
-      console.log('collision');
       return true;
     }else{
       return false;
@@ -219,7 +217,6 @@ function moveMissiles(){
   missileArr.forEach(function(item, index){
     item.move();
     if(collide(item) || !inWindow(item) ){
-      console.log('should remove missle');
       missileArr.splice( index, 1);
       item.remove();
     }
@@ -230,7 +227,6 @@ function initializeGame(){
   player = new Player({selector: '#player'});
   $(window).on('keydown keyup', function(){
     $(player.selector).trigger('tbg:player-move');
-    console.log(event);
   });
   $(player.selector).bind('tbg:player-move', playerVector );
   for(var i = 0; i < 10; i++){
@@ -249,7 +245,6 @@ $(window).bind('tbg:player-attack', fireMissile );
 
 $('#start-btn').click(function(event){
   //initialize a game
-  console.log('start-btn clicked');
   initializeGame();
   closeWindow();
 });
@@ -289,19 +284,23 @@ function playerVector(){
     movement = 0;
   }
   switch (event.which) {
-    case (37 || 65):
+    case 37:
+    case 65:
         // Key left.
         player.vector[0] = movement * -1;
         break;
-    case (38 || 87):
+    case 38:
+    case 87:
         // Key up.
         player.vector[1] = movement * -1;
         break;
-    case (39 || 68):
+    case 39:
+    case 68:
         // Key right.
         player.vector[0] = movement;
         break;
-    case (40 || 83):
+    case 40:
+    case 83:
         // Key down.
         player.vector[1] = movement;
         break;

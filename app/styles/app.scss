@@ -22,7 +22,9 @@ h1,h2,h3,h4,h5,h6{
 img {
   max-width: 100%;
 }
-
+body{
+  font-family: sans-serif;
+}
 .container{
   max-width: 1000px;
   margin: 0 auto;
@@ -32,6 +34,7 @@ img {
   @include inline-block;
   @include box-style;
   width: 45%;
+  height: 300px;
   padding: 10px;
   background: lighten(gray, 20%);
   text-align: center;
@@ -99,18 +102,28 @@ img {
   color: white;
   text-align: center;
 }
+//enemy color pallette
+$greenie-color: rgb(31, 123, 22);
+$yellowie-color: rgb(181, 187, 21);
+$reddie-color: rgb(214, 24, 24);
+$bouncer-color: rgb(24, 29, 214);
+$guardian-color: rgb(214, 111, 24);
+$black: rgb(0,0,0);
+$white: rgb(255,255,255);
+
 @mixin target( $size ) {
   width: $size;
   height: $size;
   border-radius: $size / 2;
   content: '';
   position: absolute;
+  transition: .01s;
+  border: 2px solid $black;
+  // box-shadow: 1px 1px 2px 0 $black;
 }
 .target{
   @include target( 30px );
   background: red;
-  border: 1px solid black;
-  transition: .01s;
   &::before{
     @include target( 20px );
     background: blue;
@@ -124,9 +137,176 @@ img {
     left: 9px;
   }
 }
-.test-obj{
-  position: absolute;
-  height: 5px;
-  width: 5px;
-  background: green;
+
+.greenie{
+  @include target(30px);
+  background: radial-gradient(lighten($greenie-color, 40%), $greenie-color);
+  top: 10%;
+  left: 10%;
+  animation: .5s infinite alternate greenie;
+}
+@keyframes greenie {
+  from { background: radial-gradient(lighten($greenie-color, 40%), $greenie-color); }
+  to { background: radial-gradient(lighten($greenie-color, 20%), $greenie-color); }
+}
+
+.yellowie{
+  @include target(36px);
+  background: radial-gradient( lighten($yellowie-color, 40%), $yellowie-color);
+  top: 10%;
+  left: 20%;
+  animation: .5s infinite alternate yellowie;
+}
+@keyframes yellowie {
+  from { background: radial-gradient( lighten($yellowie-color, 40%), $yellowie-color); }
+  to { background: radial-gradient( lighten($yellowie-color, 20%), $yellowie-color); }
+}
+
+.reddie{
+  @include target(40px);
+  background: radial-gradient( lighten($reddie-color, 40%), $reddie-color );
+  top: 10%;
+  left: 30%;
+  animation: .5s infinite alternate reddie;
+  &::before, &::after{
+    @include target(20px);
+    box-shadow: none;
+    background: radial-gradient(lighten($greenie-color, 40%), $greenie-color);
+    animation: 1s infinite linear rotatebubbles;
+  }
+  &::before{
+    top:10%;
+    left: 10%;
+    transform-origin: 16px 16px;
+  }
+  &::after{
+    bottom: 10%;
+    right: 10%;
+    transform-origin: 4px 4px;
+  }
+}
+
+@keyframes reddie {
+  from { background: radial-gradient( lighten($reddie-color, 40%), $reddie-color ); }
+  to { background: radial-gradient( lighten($reddie-color, 20%), $reddie-color ); }
+}
+@keyframes rotatebubbles {
+  from { transform: rotate(0deg); }
+  to {transform: rotate(360deg); }
+}
+.bouncer{
+  @include target(20px);
+  background: radial-gradient( lighten($bouncer-color, 40%), $bouncer-color );
+  top: 10%;
+  left: 40%;
+  animation: .5s infinite alternate bouncer;
+}
+@keyframes bouncer {
+  from { background: radial-gradient( lighten($bouncer-color, 40%), $bouncer-color ); }
+  to { background: radial-gradient( lighten($bouncer-color, 20%), $bouncer-color ); }
+}
+.poisoner{
+  @include target(28px);
+  background: $greenie-color;
+  top: 10%;
+  left: 50%;
+  &::before, &::after{
+    @include target(10px);
+    background: $white;
+    box-shadow: none;
+    animation: .75s infinite linear rotatebubbles;
+  }
+  &::before{
+    top:4px;
+    right: 4px;
+    transform-origin: 0px 10px;
+  }
+  &::after{
+    bottom: 4px;
+    left: 4px;
+    transform-origin: 10px 0px;
+  }
+}
+.chainer{
+  @include target(14px);
+  background: radial-gradient( lighten($black, 40%), $black );
+  top: 50%;
+  left: 70%;
+  &::after{
+    @include target(20px);
+    background: radial-gradient( lighten($black, 40%), $black );
+    top: -5px;
+    left: 55px;
+    transform-origin: -49px 10px;
+    animation: 1.5s infinite linear rotatebubbles;
+  }
+  &::before{
+    content: '';
+    position: absolute;
+    border: 3px dotted $black;
+    width: 500%;
+    left: 12px;
+    top: 3px;
+    transform-origin: -6px 3px;
+    animation: 1.5s infinite linear rotatebubbles;
+  }
+}
+.guardian{
+  @include target(40px);
+  background: radial-gradient( lighten($guardian-color, 40%), $guardian-color );
+  top: 50%;
+  left: 10%;
+  animation: .5s infinite alternate guardian;
+  &::before{
+    content: '';
+    width: 50px;
+    height: 25px;
+    border-top-left-radius: 25px;
+    border-top-right-radius: 25px;
+    border: 3px solid $black;
+    border-bottom: 0;
+    background: none;
+    position: absolute;
+    top: -7px;
+    left: -7px;
+  }
+}
+@keyframes guardian {
+  from { background: radial-gradient( lighten($guardian-color, 40%), $guardian-color ); }
+  to { background: radial-gradient( lighten($guardian-color, 20%), $guardian-color ); }
+}
+.turrett{
+  @include target(30px);
+  background: radial-gradient( lighten($black, 40%), $black );
+  top: 50%;
+  left: 30%;
+  &::before{
+    content: '';
+    width: 20px;
+    height: 5px;
+    background: linear-gradient($black, lighten($black, 40%), $black);
+    border: 2px solid $black;
+    position: absolute;
+    left: -12px;
+    top: 10px;
+  }
+}
+.exploder{
+  @include target(24px);
+  background: radial-gradient( lighten($black, 40%), $black );
+  top: 50%;
+  left: 40%;
+  &::before{
+    content: '3';
+    width: 24px;
+    height: 24px;
+    line-height: 24px;
+    text-align: center;
+    vertical-align: middle;
+    position: absolute;
+    top: -1px;
+    left: -2px;
+    color: rgb(255,124,124);
+    font-weight: bold;
+  }
 }

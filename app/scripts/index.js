@@ -74,27 +74,53 @@ function Missile(config){
 //Target is the constructor for enemy elements that are trying to kill the player
 function Target(config){
   this.id = id;
-  this.speed = 1.5;
-  this.xp = 10;
-  this.score = 10;
-  this.size = 30;
   id += 1;
+  this.speed = (config.speed || 1.5);
+  this.xp = (config.xp || 10);
+  this.score = (config.score || 10);
+  this.size = (config.size || 30);
+  this.selector = ( config.selector || 'target');
   this.x = _.random(boardLeft+windowPadding, boardRight-windowPadding);
   this.y = _.random(boardTop+windowPadding, boardBottom-windowPadding);
+  this.setStart = function(){
+    var start = _.random(0,4);
+    switch (start) {
+      case 0:
+        //start outside of top edge
+        this.y = boardTop - windowPadding;
+        this.x = _.random(boardLeft - windowPadding, boardRight + windowPadding);
+        break;
+      case 1:
+        //start outside of right edge
+        this.y = _.random(boardTop - windowPadding, boardBottom + windowPadding);
+        this.x = boardRight + windowPadding;
+        break;
+      case 2:
+        //start outside of bottom edge
+        this.y = boardBottom + windowPadding;
+        this.x = _.random(boardLeft - windowPadding, boardRight + windowPadding);
+        break;
+      case 3:
+        //start outside of left edge
+        this.y = _.random(boardTop - windowPadding, boardBottom + windowPadding);
+        this.x = boardLeft - windowPadding;
+        break;
+    }
+  };
   this.draw = function(){
-    $('#game-field').append('<div id="target-' + this.id + '" class="target">');
-    $("#target-" + this.id).offset({top: this.y, left: this.x});
+    this.setStart();
+    $('#game-field').append('<div id="' + this.selector + '-' + this.id + '" class="' + this.selector + '">');
+    $("#" + this.selector + "-" + this.id).offset({top: this.y, left: this.x});
   };
   this.move = function(){
     var vector = normalizedVector(player.x, player.y, this.x, this.y);
     this.x += vector[0] * this.speed;
     this.y += vector[1] * this.speed;
-    $("#target-" + this.id).offset({top: this.y, left: this.x});
+      $("#" + this.selector + "-" + this.id).offset({top: this.y, left: this.x});
   };
   this.remove = function(index){
-    console.log('target remove triggered');
     targetArr.splice( index, 1);
-    $('#target-' + this.id).remove();
+      $("#" + this.selector + "-" + this.id).remove();
   };
 }
 //Player is constructed and has methods to handle most player actions
@@ -211,7 +237,7 @@ function loadEnemies(){
   //approximately once every 2 seconds and with less than 15 targets on screen
   //then add a new target object and push onto the targetArr
   if(duration % (screenRefresh * 50) === 0 && targetArr.length < 15 ){
-      var target = new Target();
+      var target = new Target({});
       target.draw();
       targetArr.push(target);
   }

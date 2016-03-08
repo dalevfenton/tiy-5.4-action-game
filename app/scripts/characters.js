@@ -20,5 +20,61 @@ module.exports = {
     hp: _.random(10,20),
     level: 1,
     xp: 8
+  },
+  enemies: {
+    greenie: {
+      xp: 10,
+      level: 1,
+      speed: 1,
+      selector: 'greenie'
+    },
+    yellowie: {
+      xp: 15,
+      level: 2,
+      speed: 1.25,
+      selector: 'yellowie'
+    },
+    reddie: {
+      xp: 10,
+      level: 4,
+      speed: 1.5,
+      selector: 'reddie'
+    },
+    bouncer: {
+      xp: 25,
+      level: 4,
+      speed: 3,
+      selector: 'bouncer'
+    },
+    poisoner: {
+      xp: 20,
+      level: 5,
+      speed: 2,
+      selector: 'poisoner'
+    },
+    chainer: {
+      xp: 30,
+      level: 5,
+      speed: 3,
+      selector: 'chainer'
+    },
+    guardian: {
+      xp: 40,
+      level: 8,
+      speed: 1.25,
+      selector: 'guardian'
+    },
+    turrett: {
+      xp: 35,
+      level: 8,
+      speed: 0,
+      selector: 'turrett'
+    },
+    exploder: {
+      xp: 40,
+      level: 10,
+      speed: 4,
+      selector: 'exploder'
+    }
   }
 };
